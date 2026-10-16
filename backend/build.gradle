@@ -1,0 +1,98 @@
+plugins {
+	id 'java'
+	id 'org.springframework.boot' version '3.4.3'
+	id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.terangacivil'
+version = '0.0.1-SNAPSHOT'
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(23)
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+	implementation 'org.springframework.boot:spring-boot-starter-security'
+	implementation 'org.springframework.boot:spring-boot-starter-validation'
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+	implementation 'org.springframework.boot:spring-boot-starter-mail'
+	implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
+	implementation 'me.paulschwarz:spring-dotenv:4.0.0'
+
+	// JWT Dependencies
+	implementation 'io.jsonwebtoken:jjwt-api:0.12.5'
+	runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.5'
+	runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.5'
+
+	compileOnly 'org.projectlombok:lombok'
+	runtimeOnly 'org.postgresql:postgresql'
+	annotationProcessor 'org.projectlombok:lombok'
+	implementation 'com.github.librepdf:openpdf:2.0.3'
+	implementation 'com.openhtmltopdf:openhtmltopdf-pdfbox:1.0.10'
+	implementation 'com.deepoove:poi-tl:1.12.2'
+	implementation 'com.documents4j:documents4j-local:1.1.12'
+	implementation 'com.documents4j:documents4j-transformer-msoffice-word:1.1.12'
+	implementation 'org.docx4j:docx4j-JAXB-ReferenceImpl:8.3.9'
+	implementation 'org.docx4j:docx4j-export-fo:8.3.9'
+	implementation 'javax.xml.bind:jaxb-api:2.3.1'
+	implementation 'org.glassfish.jaxb:jaxb-runtime:2.3.1'
+	implementation 'javax.activation:activation:1.1.1'
+	implementation 'com.google.zxing:core:3.5.3'
+	implementation 'com.google.zxing:javase:3.5.3'
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testImplementation 'org.springframework.security:spring-security-test'
+	testCompileOnly 'org.projectlombok:lombok'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+	testAnnotationProcessor 'org.projectlombok:lombok'
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+}
+
+task queryDB {
+    doLast {
+        def url = 'jdbc:postgresql://localhost:5440/teranga_civil'
+        def user = 'postgres'
+        def password = 'securepassword'
+        
+        // We use groovy.sql.Sql to query
+        URLClassLoader loader = GroovyObject.class.classLoader
+        configurations.runtimeClasspath.each { File file ->
+            loader.addURL(file.toURI().toURL())
+        }
+        
+        try {
+            def sql = groovy.sql.Sql.newInstance(url, user, password, 'org.postgresql.Driver')
+            
+            println "\n=== DEMANDES IN DB ==="
+            def count = 0
+            sql.eachRow("SELECT d.id, d.reference, d.activite_id, d.centre_id, d.statut, u.nom_complet as citoyen FROM demandes d JOIN users u ON d.citoyen_id = u.id") { row ->
+                count++
+                println "ID: ${row.id}, Ref: ${row.reference}, Activite: ${row.activite_id}, Centre: ${row.centre_id}, Statut: ${row.statut}, Citoyen: ${row.citoyen}"
+            }
+            println "Total demandes: ${count}"
+            
+            println "\n=== USERS IN DB (Agent/Officier) ==="
+            sql.eachRow("SELECT u.id, u.nom_complet, u.telephone, p.nom as profil, u.centre_id FROM users u LEFT JOIN profils p ON u.profil_id = p.id WHERE p.nom != 'Citoyen' OR p.nom IS NULL") { row ->
+                println "User ID: ${row.id}, Nom: ${row.nom_complet}, Tel: ${row.telephone}, Profil: ${row.profil}, Centre: ${row.centre_id}"
+            }
+            
+            println "\n=== USER ACTIVITIES (user_activities) ==="
+            sql.eachRow("SELECT * FROM user_activities") { row ->
+                println "User ID: ${row.user_id}, Activity ID: ${row.activity_id}"
+            }
+            
+            sql.close()
+        } catch (Exception e) {
+            e.printStackTrace()
+        }
+    }
+}

@@ -1,0 +1,16 @@
+CREATE INDEX IF NOT EXISTS idx_users_centre_id ON users(centre_id);
+CREATE INDEX IF NOT EXISTS idx_users_bureau_id ON users(bureau_id);
+CREATE INDEX IF NOT EXISTS idx_users_commune_id ON users(commune_id);
+CREATE INDEX IF NOT EXISTS idx_users_profil_id ON users(profil_id);
+CREATE INDEX IF NOT EXISTS idx_demandes_centre_id ON demandes(centre_id);
+CREATE INDEX IF NOT EXISTS idx_demandes_commune_id ON demandes(commune_id);
+CREATE INDEX IF NOT EXISTS idx_demandes_citoyen_id ON demandes(citoyen_id);
+CREATE INDEX IF NOT EXISTS idx_demandes_activite_id ON demandes(activite_id);
+CREATE INDEX IF NOT EXISTS idx_pointages_centre_id ON pointages(centre_id);
+CREATE INDEX IF NOT EXISTS idx_pointages_bureau_id ON pointages(bureau_id);
+CREATE INDEX IF NOT EXISTS idx_pointages_user_id ON pointages(user_id);
+CREATE INDEX IF NOT EXISTS idx_pointages_date ON pointages(date);
+CREATE INDEX IF NOT EXISTS idx_profil_permissions_profil_id ON profil_permissions(profil_id);
+CREATE INDEX IF NOT EXISTS idx_profil_permissions_permissions_id ON profil_permissions(permissions_id);
+CREATE INDEX IF NOT EXISTS idx_user_activities_user_id ON user_activities(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_activities_activities_id ON user_activities(activities_id);

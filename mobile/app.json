@@ -1,0 +1,59 @@
+{
+  "expo": {
+    "name": "TerangaCivil",
+    "slug": "mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/logo.png",
+    "scheme": "mobile",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "icon": "./assets/images/logo.png",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "L'assistant IA a besoin du microphone pour vous permettre de lui parler avec des messages vocaux."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#ffffff",
+        "foregroundImage": "./assets/images/logo.png"
+      },
+      "permissions": [
+        "RECORD_AUDIO"
+      ],
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/images/logo.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#ffffff",
+          "image": "./assets/images/logo.png",
+          "imageWidth": 200,
+          "android": {
+            "image": "./assets/images/logo.png",
+            "imageWidth": 200
+          }
+        }
+      ],
+      "expo-font",
+      "expo-web-browser",
+      "@react-native-community/datetimepicker",
+      "expo-secure-store",
+      "expo-image",
+      "expo-sharing",
+      "expo-sqlite",
+      "expo-status-bar",
+      "expo-audio"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}

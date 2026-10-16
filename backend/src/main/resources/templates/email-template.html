@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${title}">Notification Teranga Civil</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f1f5f9;
+            margin: 0;
+            padding: 0;
+            color: #334155;
+        }
+        .container {
+            max-width: 600px;
+            margin: 40px auto;
+            background: #ffffff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .header {
+            background-color: #0f4a30; /* Teranga Green */
+            padding: 30px 20px;
+            text-align: center;
+        }
+        .header img {
+            max-width: 150px;
+        }
+        .content {
+            padding: 40px 30px;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+        .content h1 {
+            color: #0f172a;
+            font-size: 22px;
+            margin-top: 0;
+            margin-bottom: 20px;
+        }
+        .button-container {
+            text-align: center;
+            margin-top: 30px;
+            margin-bottom: 10px;
+        }
+        .button {
+            display: inline-block;
+            background-color: #f59e0b; /* Teranga Yellow/Amber */
+            color: #ffffff;
+            font-weight: bold;
+            text-decoration: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+        }
+        .footer {
+            background-color: #f8fafc;
+            padding: 20px;
+            text-align: center;
+            font-size: 13px;
+            color: #94a3b8;
+            border-top: 1px solid #e2e8f0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <img th:if="${logoImage != null}" src="cid:logoImage" alt="Teranga Civil Logo" />
+            <h2 th:if="${logoImage == null}" style="color: white; margin: 0;">Teranga Civil</h2>
+        </div>
+        <div class="content">
+            <h1 th:text="${title}">Notification</h1>
+            
+            <p th:utext="${message}">Contenu du message</p>
+
+            <div class="button-container" th:if="${actionUrl != null}">
+                <a th:href="${actionUrl}" class="button" th:text="${actionText}">Accéder à mon espace</a>
+            </div>
+        </div>
+        <div class="footer">
+            <p>Ce message a été généré automatiquement par la plateforme de digitalisation de l'État Civil de Teranga Civil. Merci de ne pas y répondre.</p>
+            <p>&copy; 2026 Teranga Civil - Tous droits réservés.</p>
+        </div>
+    </div>
+</body>
+</html>

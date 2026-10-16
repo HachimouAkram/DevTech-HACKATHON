@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  backend:
+    build: 
+      context: ./backend
+    container_name: teranga_backend
+    ports:
+      - "18080:5000"
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    environment:
+      - DB_URL=jdbc:postgresql://host.docker.internal:5440/teranga_civil
+      - REDIS_URL=redis://host.docker.internal:6381
+    # The backend container connects to the host machine's existing database using host.docker.internal if needed.
+
+  ia:
+    build: 
+      context: ./ia
+    container_name: teranga_ia
+    ports:
+      - "18000:8000"
+    restart: unless-stopped
+    env_file:
+      - ./ia/.env
+    environment:
+      - DATABASE_URL=postgresql://postgres:securepassword@host.docker.internal:5440/teranga_civil
+      - JWT_SECRET=terangacivil2026_super_secret_jwt_key_123456
+
+  dashboard:
+    build: 
+      context: ./dashboard
+    container_name: teranga_dashboard
+    ports:
+      - "15173:5173"
+    restart: unless-stopped
+    environment:
+      # L'URL ci-dessous doit être modifiée avec l'IP locale du PC host (ex: 192.168.1.50) si on accède depuis un autre PC
+      - VITE_API_BASE_URL=http://192.168.34.27:18080/api

@@ -1,0 +1,33 @@
+import java.sql.DriverManager
+
+task queryDB {
+    doLast {
+        def url = 'jdbc:postgresql://localhost:5440/teranga_civil'
+        def user = 'postgres'
+        def password = 'securepassword'
+        
+        try {
+            def conn = DriverManager.getConnection(url, user, password)
+            def stmt = conn.createStatement()
+            def rs = stmt.executeQuery("SELECT d.id, d.reference, d.activite_id, d.centre_id, d.statut, u.nom_complet as citoyen FROM demandes d JOIN users u ON d.citoyen_id = u.id")
+            
+            println "--- DEMANDES IN DB ---"
+            int count = 0
+            while (rs.next()) {
+                count++
+                println "ID: " + rs.getInt("id") + ", Ref: " + rs.getString("reference") + ", Activite: " + rs.getInt("activite_id") + ", Centre: " + rs.getInt("centre_id") + ", Statut: " + rs.getString("statut") + ", Citoyen: " + rs.getString("citoyen")
+            }
+            println "Total demandes: " + count
+            
+            println "\n--- USERS IN DB (Agent/Officier) ---"
+            def rs2 = stmt.executeQuery("SELECT u.id, u.nom_complet, u.telephone, p.nom as profil, u.centre_id FROM users u LEFT JOIN profils p ON u.profil_id = p.id WHERE p.nom != 'Citoyen' OR p.nom IS NULL")
+            while (rs2.next()) {
+                println "User ID: " + rs2.getInt("id") + ", Nom: " + rs2.getString("nom_complet") + ", Tel: " + rs2.getString("telephone") + ", Profil: " + rs2.getString("profil") + ", Centre: " + rs2.getInt("centre_id")
+            }
+            
+            conn.close()
+        } catch (Exception e) {
+            e.printStackTrace()
+        }
+    }
+}

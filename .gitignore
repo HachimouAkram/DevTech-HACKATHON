@@ -1,0 +1,50 @@
+# ===== Dependencies & Build artifacts =====
+**/node_modules/
+**/.gradle/
+**/build/
+**/.expo/
+**/.next/
+**/out/
+**/dist/
+**/.vite/
+
+# ===== Secrets & Environment variables =====
+.env
+.env.local
+.env.*.local
+**/backend/.env
+**/backend/src/main/resources/application.properties
+
+# ===== OS & Editor files =====
+.DS_Store
+*.log
+**/*.log
+.idea/
+.vscode/settings.json
+*.swp
+*.swo
+
+# ===== CI/System generated =====
+**/.system_generated/
+/brain/
+
+# ===== Uploaded media (runtime data) =====
+**/backend/uploads/
+
+# ===== Development plan drafts =====
+implementation_plan*.md
+
+# ===== Duplicate files and unneeded folders =====
+Terangainnovation-main/
+*.db
+*.sqlite
+*.sqlite3
+*.key
+*.pem
+*.jks
+
+.venv/
+ia/.venv/
+**/__pycache__/
+**/*.pyc
+
