@@ -8,12 +8,8 @@
 **/dist/
 **/.vite/
 
-# ===== Secrets & Environment variables =====
-.env
-.env.local
-.env.*.local
-**/backend/.env
-**/backend/src/main/resources/application.properties
+# ===== Environment variables (Tracked for open-source competition) =====
+# .env and application.properties are tracked so the app can be run out of the box
 
 # ===== OS & Editor files =====
 .DS_Store
