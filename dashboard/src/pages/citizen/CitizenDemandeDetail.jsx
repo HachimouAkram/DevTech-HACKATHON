@@ -236,16 +236,13 @@ export default function CitizenDemandeDetail({ user }) {
     }
   };
 
-  // Suppression d'une demande en attente
+  // Modification d'une demande en attente via le formulaire dynamique complet
   const handleOpenEdit = () => {
-    setEditError('');
-    setEditSuccess('');
-    const rawDonnees = demande?.donnees && typeof demande.donnees === 'object' ? { ...demande.donnees } : {};
-    setEditForm({
-      ...rawDonnees,
-      motif: demande?.motif || ''
-    });
-    setEditModalOpen(true);
+    if (demande?.statut !== 'en_attente') {
+      alert("Cette démarche ne peut plus être modifiée car elle est déjà prise en charge.");
+      return;
+    }
+    navigate(`/citoyen/demande/nouvelle?editId=${demande.id}`);
   };
 
   const handleSaveEdit = async () => {
@@ -1443,185 +1440,7 @@ export default function CitizenDemandeDetail({ user }) {
         </div>
       )}
 
-            {/* ── MODALE MODIFICATION DU DOSSIER (EN ATTENTE) ── */}
-      {editModalOpen && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          backgroundColor: 'rgba(15,23,42,0.6)',
-          backdropFilter: 'blur(4px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 99999,
-          padding: '1rem'
-        }}>
-          <div style={{
-            backgroundColor: 'var(--c-bg-card, #ffffff)',
-            borderRadius: '24px',
-            padding: '2rem',
-            maxWidth: '650px',
-            width: '100%',
-            maxHeight: '90vh',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '1.25rem',
-            boxShadow: '0 25px 50px rgba(0,0,0,0.25)',
-            overflow: 'hidden'
-          }}>
-            {/* Entête */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f1f5f9', paddingBottom: '1rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{
-                  width: '42px',
-                  height: '42px',
-                  borderRadius: '12px',
-                  backgroundColor: '#eff6ff',
-                  color: '#2563eb',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}>
-                  <Pencil size={20} />
-                </div>
-                <div>
-                  <h3 style={{ fontSize: '1.2rem', fontWeight: '800', color: 'var(--c-text-primary, #0f172a)', margin: 0 }}>
-                    Modifier ma demande
-                  </h3>
-                  <span style={{ fontSize: '0.8rem', color: 'var(--c-text-muted, #64748b)' }}>
-                    Référence : {demande.reference || demande.id}
-                  </span>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setEditModalOpen(false)}
-                style={{ background: 'none', border: 'none', color: 'var(--c-text-muted, #64748b)', cursor: 'pointer', padding: '6px' }}
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            {/* Alertes locales */}
-            {editError && (
-              <div style={{ backgroundColor: '#fef2f2', border: '1px solid #fecaca', color: '#b91c1c', padding: '10px 14px', borderRadius: '10px', fontSize: '0.85rem', fontWeight: '600' }}>
-                {editError}
-              </div>
-            )}
-            {editSuccess && (
-              <div style={{ backgroundColor: '#ecfdf5', border: '1px solid #a7f3d0', color: '#065f46', padding: '10px 14px', borderRadius: '10px', fontSize: '0.85rem', fontWeight: '600' }}>
-                {editSuccess}
-              </div>
-            )}
-
-            {/* Corps du formulaire scrollable */}
-            <div style={{ overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '14px', paddingRight: '4px' }}>
-              {/* Saisie motif */}
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', color: 'var(--c-text-primary, #334155)', marginBottom: '6px' }}>
-                  Motif ou objet de la demande
-                </label>
-                <input
-                  type="text"
-                  value={editForm.motif || ''}
-                  onChange={e => setEditForm(prev => ({ ...prev, motif: e.target.value }))}
-                  placeholder="Ex : Extrait pour concours, passeport..."
-                  style={{
-                    width: '100%',
-                    padding: '10px 14px',
-                    borderRadius: '10px',
-                    border: '1px solid var(--c-border, #cbd5e1)',
-                    fontSize: '0.9rem',
-                    outline: 'none',
-                    boxSizing: 'border-box'
-                  }}
-                />
-              </div>
-
-              {/* Champs de données de la demande */}
-              {Object.keys(editForm)
-                .filter(key => key !== 'motif' && typeof editForm[key] !== 'object')
-                .map(key => {
-                  const label = key
-                    .replace(/_/g, ' ')
-                    .replace(/([A-Z])/g, ' $1')
-                    .replace(/^./, str => str.toUpperCase());
-
-                  return (
-                    <div key={key}>
-                      <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', color: 'var(--c-text-primary, #334155)', marginBottom: '6px' }}>
-                        {label}
-                      </label>
-                      <input
-                        type="text"
-                        value={editForm[key] || ''}
-                        onChange={e => setEditForm(prev => ({ ...prev, [key]: e.target.value }))}
-                        style={{
-                          width: '100%',
-                          padding: '10px 14px',
-                          borderRadius: '10px',
-                          border: '1px solid var(--c-border, #cbd5e1)',
-                          fontSize: '0.9rem',
-                          outline: 'none',
-                          boxSizing: 'border-box'
-                        }}
-                      />
-                    </div>
-                  );
-                })}
-
-              {Object.keys(editForm).filter(k => k !== 'motif').length === 0 && (
-                <div style={{ padding: '1rem', backgroundColor: 'var(--c-bg-subtle, #f8fafc)', borderRadius: '12px', textAlign: 'center', color: 'var(--c-text-muted, #64748b)', fontSize: '0.88rem' }}>
-                  Aucun champ dynamique personnalisé à éditer pour ce dossier. Vous pouvez modifier le motif ci-dessus.
-                </div>
-              )}
-            </div>
-
-            {/* Pied de page modale */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', borderTop: '1px solid #f1f5f9', paddingTop: '1rem' }}>
-              <button
-                type="button"
-                onClick={() => setEditModalOpen(false)}
-                disabled={savingEdit}
-                style={{
-                  padding: '10px 20px',
-                  borderRadius: '12px',
-                  border: '1px solid var(--c-border, #cbd5e1)',
-                  backgroundColor: 'var(--c-bg-card, #ffffff)',
-                  fontWeight: '700',
-                  color: 'var(--c-text-secondary, #475569)',
-                  cursor: 'pointer'
-                }}
-              >
-                Annuler
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveEdit}
-                disabled={savingEdit}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '10px 22px',
-                  borderRadius: '12px',
-                  border: 'none',
-                  backgroundColor: '#2563eb',
-                  color: '#ffffff',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 12px rgba(37,99,235,0.25)'
-                }}
-              >
-                <Save size={16} />
-                <span>{savingEdit ? 'Enregistrement...' : 'Enregistrer les modifications'}</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── MODALE VISIONNEUSE OFFICIELLE PDF & DOCUMENTS ── */}
+            {/* ── MODALE VISIONNEUSE OFFICIELLE PDF & DOCUMENTS ── */}
       {previewPdfUrl && (
         <div style={{
           position: 'fixed',

@@ -65,6 +65,11 @@ public class DemandeController {
         return ResponseEntity.ok(ApiResponse.success(Map.of("demande", demandeService.createDemande(request, currentUserService.getCurrentUser()))));
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getDemandeById(@PathVariable("id") Integer id) {
+        return ResponseEntity.ok(ApiResponse.success(Map.of("demande", demandeService.getDemandeById(id, currentUserService.getCurrentUser()))));
+    }
+
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<Map<String, Object>>> updateDemande(
             @PathVariable("id") Integer id,

@@ -23,9 +23,13 @@ export default defineConfig([
     rules: {
       'no-unused-vars': 'warn',
       'no-undef': 'warn',
+      'no-empty': ['warn', { allowEmptyCatch: true }],
       'react-hooks/rules-of-hooks': 'error',
       'react-hooks/exhaustive-deps': 'warn',
       'react-hooks/set-state-in-effect': 'off',
+      'react-hooks/purity': 'warn',
+      'react-hooks/immutability': 'warn',
+      'react-hooks/static-components': 'warn',
       'react-refresh/only-export-components': 'warn',
       'no-useless-assignment': 'warn',
     },

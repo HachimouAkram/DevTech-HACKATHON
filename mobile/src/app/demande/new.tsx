@@ -1460,9 +1460,20 @@ export default function NewRequestScreen() {
     }
 
     // 2. Check parent condition (yesno / select)
-    if (c.conditions && c.conditions.field) {
-      const parentVal = values[c.conditions.field];
-      return parentVal === c.conditions.value;
+    let cond = c.conditions;
+    if (typeof cond === 'string') {
+      try { cond = JSON.parse(cond); } catch (e) { cond = null; }
+    }
+    if (cond && cond.field) {
+      const parent = (champsDynamiques || []).find((p: any) => p.nom_champ === cond.field);
+      if (parent && !shouldShowField(parent, values)) {
+        return false;
+      }
+      const parentVal = values[cond.field];
+      if (parentVal === undefined || parentVal === null || String(parentVal).trim() === '') {
+        return false;
+      }
+      return String(parentVal).trim().toLowerCase() === String(cond.value).trim().toLowerCase();
     }
 
     return true;
@@ -1876,7 +1887,11 @@ export default function NewRequestScreen() {
                 setFormValues(prev => {
                   const updated: Record<string, string> = { ...prev, [nom_champ]: 'oui' };
                   champsDynamiques.forEach(child => {
-                    if (child.conditions && child.conditions.field === nom_champ && child.conditions.value === 'non') {
+                    let cCond = child.conditions;
+                    if (typeof cCond === 'string') {
+                      try { cCond = JSON.parse(cCond); } catch (e) { cCond = null; }
+                    }
+                    if (cCond && cCond.field === nom_champ && String(cCond.value).toLowerCase() === 'non') {
                       delete updated[child.nom_champ as string];
                     }
                   });
@@ -1901,7 +1916,11 @@ export default function NewRequestScreen() {
                 setFormValues(prev => {
                   const updated: Record<string, string> = { ...prev, [nom_champ]: 'non' };
                   champsDynamiques.forEach(child => {
-                    if (child.conditions && child.conditions.field === nom_champ && child.conditions.value === 'oui') {
+                    let cCond = child.conditions;
+                    if (typeof cCond === 'string') {
+                      try { cCond = JSON.parse(cCond); } catch (e) { cCond = null; }
+                    }
+                    if (cCond && cCond.field === nom_champ && String(cCond.value).toLowerCase() === 'oui') {
                       delete updated[child.nom_champ as string];
                     }
                   });

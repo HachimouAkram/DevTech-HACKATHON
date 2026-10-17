@@ -5,7 +5,7 @@ import {
   AlertCircle, ShieldCheck, MapPin, Building2, Calendar, CreditCard,
   Clock, Star, Search, Trash2, Eye, Landmark, Users, Navigation,
   ChevronRight, Smartphone, Check, Lock, QrCode, Wallet, Send,
-  RefreshCw, AlertTriangle
+  RefreshCw, AlertTriangle, Bookmark, HelpCircle, UserCheck, Pencil
 } from 'lucide-react';
 import api from '../../utils/api';
 
@@ -21,21 +21,43 @@ const guessFieldType = (label = '') => {
   return 'text';
 };
 
-// Extraction uniforme des champs dynamiques et des pièces
+// Extraction uniforme des champs dynamiques et des pièces avec prise en compte stricte des conditions
 const extractChamps = (act) => {
   if (!act) return [];
   const raw = act.champs_dynamiques || act.champsDynamiques || act.champs;
   if (Array.isArray(raw) && raw.length > 0) {
-    return raw.map((c, i) => ({
-      id: c.id || i,
-      nom_champ: c.nom_champ || c.nomChamp || `champ_${i}`,
-      label: c.label || c.nom_champ,
-      type_champ: c.type_champ || c.typeChamp || 'text',
-      obligatoire: c.obligatoire !== undefined ? c.obligatoire : true,
-      ordre: c.ordre !== undefined ? c.ordre : i,
-      placeholder: c.placeholder || '',
-      options: Array.isArray(c.options) ? c.options : (typeof c.options === 'string' ? JSON.parse(c.options || '[]') : []),
-    }));
+    return raw.map((c, i) => {
+      let cond = c.conditions;
+      if (typeof cond === 'string') {
+        try {
+          cond = JSON.parse(cond);
+        } catch (e) {
+          cond = null;
+        }
+      }
+      let opts = c.options;
+      if (typeof opts === 'string') {
+        try {
+          opts = JSON.parse(opts);
+        } catch (e) {
+          opts = [];
+        }
+      }
+      if (!Array.isArray(opts)) opts = [];
+
+      return {
+        id: c.id || i,
+        nom_champ: c.nom_champ || c.nomChamp || `champ_${i}`,
+        label: c.label || c.nom_champ,
+        type_champ: c.type_champ || c.typeChamp || 'text',
+        obligatoire: c.obligatoire !== undefined ? !!c.obligatoire : true,
+        ordre: c.ordre !== undefined ? Number(c.ordre) : i,
+        placeholder: c.placeholder || '',
+        options: opts,
+        conditions: cond || null,
+        motif_lie: c.motif_lie || c.motifLie || null,
+      };
+    }).sort((a, b) => (a.ordre ?? 0) - (b.ordre ?? 0));
   }
   if (Array.isArray(act.champs_requis) && act.champs_requis.length > 0) {
     return act.champs_requis.map((lbl, i) => {
@@ -48,11 +70,55 @@ const extractChamps = (act) => {
         obligatoire: true,
         ordre: i,
         placeholder: `Saisir : ${lbl.toLowerCase()}`,
-        options: type === 'select' && lbl.toLowerCase().includes('sexe') ? ['Masculin', 'Féminin'] : []
+        options: type === 'select' && lbl.toLowerCase().includes('sexe') ? ['Masculin', 'Féminin'] : [],
+        conditions: null,
+        motif_lie: null
       };
     });
   }
   return [];
+};
+
+// Évaluation dynamique des conditions configurées par l'administrateur
+const isFieldVisible = (champ, currentValues = {}, allChamps = []) => {
+  if (!champ) return false;
+
+  // 1. Filtrage par motif lié si renseigné
+  if (champ.motif_lie && currentValues.motif && champ.motif_lie !== currentValues.motif) {
+    return false;
+  }
+
+  // 2. Condition parente
+  let cond = champ.conditions;
+  if (typeof cond === 'string') {
+    try {
+      cond = JSON.parse(cond);
+    } catch (e) {
+      cond = null;
+    }
+  }
+
+  if (cond && cond.field) {
+    // Si le parent existe et est masqué, le champ enfant est récursivement masqué
+    const parentField = (allChamps || []).find(c => c.nom_champ === cond.field);
+    if (parentField && !isFieldVisible(parentField, currentValues, allChamps)) {
+      return false;
+    }
+
+    const parentVal = currentValues[cond.field];
+    if (parentVal === undefined || parentVal === null || String(parentVal).trim() === '') {
+      return false;
+    }
+
+    const pValNorm = String(parentVal).trim().toLowerCase();
+    const cValNorm = String(cond.value).trim().toLowerCase();
+
+    if (pValNorm !== cValNorm) {
+      return false;
+    }
+  }
+
+  return true;
 };
 
 export default function CitizenNewDemande({ user }) {
@@ -63,6 +129,9 @@ export default function CitizenNewDemande({ user }) {
   const urlBureauNom = searchParams.get('bureauNom');
   const urlBureauCouleur = searchParams.get('bureauCouleur') || '#2563eb';
   const urlActivityId = searchParams.get('activityId');
+  const urlEditId = searchParams.get('editId');
+  const [isEditMode, setIsEditMode] = useState(!!urlEditId);
+  const [editDemandeOriginal, setEditDemandeOriginal] = useState(null);
 
   // Étapes :
   // 1 = Choix Acte (1A: Service, 1B: Document/Activité)
@@ -182,6 +251,116 @@ export default function CitizenNewDemande({ user }) {
             setStep(2);
           }
         }
+
+        // Si une modification de demande en attente est demandée
+        if (urlEditId) {
+          try {
+            let dem = null;
+            try {
+              const demRes = await api.get('/demandes/' + urlEditId);
+              dem = demRes?.data?.demande || demRes?.data;
+            } catch (singleErr) {
+              // Fallback liste
+              try {
+                const listRes = await api.get('/demandes');
+                const list = listRes?.data?.demandes || listRes?.data?.content || (Array.isArray(listRes?.data) ? listRes.data : []);
+                dem = Array.isArray(list) ? list.find(d => String(d.id) === String(urlEditId) || String(d.reference) === String(urlEditId)) : null;
+              } catch (listErr) {
+                console.warn('Fallback liste error:', listErr);
+              }
+            }
+
+            if (dem) {
+              if (dem.statut !== 'en_attente') {
+                alert("Cette démarche ne peut plus être modifiée car elle est déjà prise en charge.");
+                navigate('/citoyen/demandes');
+                return;
+              }
+
+              setIsEditMode(true);
+              setEditDemandeOriginal(dem);
+
+              // Extraction de l'activité (soit objet complet, soit via activite_id)
+              const actId = dem.activite_id || dem.activiteId || dem.activite?.id;
+              let act = dem.activite || null;
+              if (actId) {
+                try {
+                  const actRes = await api.get('/activities/' + actId);
+                  const fetchedAct = actRes?.data?.activity || actRes?.data;
+                  if (fetchedAct) act = fetchedAct;
+                } catch (actErr) {
+                  console.warn('Erreur chargement activite:', actErr);
+                }
+              }
+              if (!act && (dem.activite_nom || dem.activiteNom)) {
+                act = { id: actId, nom: dem.activite_nom || dem.activiteNom };
+              }
+              setSelectedActivity(act);
+
+              // Centre de dépôt
+              const cId = dem.centre_id || dem.centreId || dem.centre?.id;
+              if (cId) {
+                setSelectedCentreId(String(cId));
+              }
+
+              // Centre de délivrance (transfert)
+              const cdId = dem.centre_delivrance_id || dem.centreDelivranceId || dem.centre_delivrance?.id;
+              if (cdId) {
+                setHasTransfer(true);
+                setDelivCentreId(String(cdId));
+              }
+
+              // Chargement frais des champs dynamiques pour l'activité
+              let champs = [];
+              if (actId) {
+                try {
+                  const cRes = await api.get(`/champs-dynamiques?activiteId=${actId}&t=${Date.now()}`);
+                  const cList = cRes?.data?.champs || cRes?.champs;
+                  if (Array.isArray(cList) && cList.length > 0) {
+                    champs = extractChamps({ champs_dynamiques: cList });
+                  }
+                } catch (cErr) {
+                  console.warn('Fallback aux champs activite:', cErr);
+                }
+              }
+              if ((!champs || champs.length === 0) && act) {
+                champs = extractChamps(act);
+              }
+              setChampsDynamiques(champs);
+
+              // Données pré-remplies
+              const raw = (dem.donnees && typeof dem.donnees === 'object') ? { ...dem.donnees } : {};
+              if (dem.motif && !raw.motif) {
+                raw.motif = dem.motif;
+              }
+              setFormValues(raw);
+
+              // Documents pré-remplis
+              const docs = dem.documents_url || dem.documentsUrl || {};
+              const filesMap = {};
+              if (typeof docs === 'object') {
+                Object.entries(docs).forEach(([key, val]) => {
+                  if (val) {
+                    filesMap[key] = {
+                      url: typeof val === 'object' ? val.url : val,
+                      filename: typeof val === 'object' ? val.filename : (key + '.pdf'),
+                      name: key
+                    };
+                  }
+                });
+              }
+              setUploadedFiles(filesMap);
+
+              // Aller directement à l'étape Données du dossier (Étape 3)
+              setStep(3);
+            } else {
+              setError("Dossier introuvable ou accès refusé.");
+            }
+          } catch (err) {
+            console.error('Erreur chargement modification demande:', err);
+            setError("Impossible de charger le dossier à modifier.");
+          }
+        }
       } catch (err) {
         console.error('Erreur initialisation:', err);
       } finally {
@@ -208,6 +387,46 @@ export default function CitizenNewDemande({ user }) {
     }
   };
 
+  // Gestionnaire de mise à jour des valeurs avec nettoyage automatique en cascade des enfants conditionnels
+  const handleFieldChange = (fieldName, newVal) => {
+    setFormValues(prev => {
+      const updated = { ...prev, [fieldName]: newVal };
+
+      // Nettoie récursivement tous les champs dépendants dont la condition n'est plus satisfaite
+      const pruneDescendants = (parentName) => {
+        champsDynamiques.forEach(child => {
+          let cond = child.conditions;
+          if (typeof cond === 'string') {
+            try { cond = JSON.parse(cond); } catch (e) { cond = null; }
+          }
+          if (cond && cond.field === parentName) {
+            const parentVal = updated[parentName];
+            const matches = parentVal !== undefined && parentVal !== null &&
+              String(parentVal).trim().toLowerCase() === String(cond.value).trim().toLowerCase();
+
+            if (!matches) {
+              delete updated[child.nom_champ];
+              if (child.type_champ === 'file') {
+                setUploadedFiles(upPrev => {
+                  if (upPrev[child.nom_champ]) {
+                    const nextUp = { ...upPrev };
+                    delete nextUp[child.nom_champ];
+                    return nextUp;
+                  }
+                  return upPrev;
+                });
+              }
+              pruneDescendants(child.nom_champ);
+            }
+          }
+        });
+      };
+
+      pruneDescendants(fieldName);
+      return updated;
+    });
+  };
+
   // Sélection d'une activité -> extraction dynamique des champs et ouverture modal d'information
   const handleSelectActivity = async (act) => {
     setSelectedActivity(act);
@@ -216,20 +435,39 @@ export default function CitizenNewDemande({ user }) {
       const res = await api.get('/activities/' + act.id);
       const detailed = res?.data?.activity || res?.data || act;
       setSelectedActivity(detailed);
-      const champs = extractChamps(detailed);
+
+      let champs = [];
+      try {
+        const cRes = await api.get(`/champs-dynamiques?activiteId=${act.id}&t=${Date.now()}`);
+        const cList = cRes?.data?.champs || cRes?.champs;
+        if (Array.isArray(cList) && cList.length > 0) {
+          champs = extractChamps({ champs_dynamiques: cList });
+        }
+      } catch (cErr) {
+        console.warn('Fallback aux champs de detailed.activity:', cErr);
+      }
+
+      if (!champs || champs.length === 0) {
+        champs = extractChamps(detailed);
+      }
+
       setChampsDynamiques(champs);
+      setFormValues({});
+      setUploadedFiles({});
       setShowInfoModal(true);
     } catch {
       const champs = extractChamps(act);
       setChampsDynamiques(champs);
+      setFormValues({});
+      setUploadedFiles({});
       setShowInfoModal(true);
     } finally {
       setLoading(false);
     }
   };
 
-  // Condition dynamique : y a-t-il des pièces jointes requises ?
-  const hasDocumentStep = champsDynamiques.some(c => c.type_champ === 'file');
+  // Condition dynamique : y a-t-il des pièces jointes VISIBLES requises selon les réponses actuelles ?
+  const hasDocumentStep = champsDynamiques.some(c => c.type_champ === 'file' && isFieldVisible(c, formValues, champsDynamiques));
 
   // Menus déroulants géographiques filtrés
   const filteredDepts = departements.filter(d => !selectedRegionId || d.region_id === Number(selectedRegionId));
@@ -343,34 +581,36 @@ export default function CitizenNewDemande({ user }) {
       }
       setStep(3);
     } else if (step === 3) {
-      // Valider champs obligatoires non-fichier
+      // Valider champs obligatoires non-fichier et non-section qui sont ACTUELLEMENT VISIBLES
       for (const champ of champsDynamiques) {
-        if (champ.obligatoire && champ.type_champ !== 'file') {
-          const val = formValues[champ.nom_champ];
-          if (!val || String(val).trim() === '') {
-            setError('Le champ « ' + champ.label + ' » est obligatoire.');
-            return;
+        if (champ.type_champ !== 'file' && champ.type_champ !== 'section') {
+          if (isFieldVisible(champ, formValues, champsDynamiques) && champ.obligatoire) {
+            const val = formValues[champ.nom_champ];
+            if (val === undefined || val === null || String(val).trim() === '') {
+              setError('Le champ « ' + (champ.label || champ.nom_champ) + ' » est obligatoire.');
+              return;
+            }
           }
         }
       }
       // Valider motif si configuré
       if (selectedActivity?.motifs && selectedActivity.motifs.length > 0 && !formValues.motif) {
-        setError('Veuillez sélectionner le motif officiel de la demande.');
+        setError('Veuillez sélectionner le motif officiel de la démarche.');
         return;
       }
 
-      // Si documents requis -> Étape 4 (Documents), sinon -> Étape 4 (Résumé & Paiement)
+      // Si pièces jointes visibles requises -> Étape 4 (Documents), sinon -> Résumé
       if (hasDocumentStep) {
         setStep(4);
       } else {
         setStep(4); // Si pas de docs, l'étape 4 est le Résumé
       }
     } else if (step === 4 && hasDocumentStep) {
-      // Valider fichiers obligatoires
+      // Valider fichiers obligatoires VISIBLES
       for (const champ of champsDynamiques) {
-        if (champ.obligatoire && champ.type_champ === 'file') {
+        if (champ.type_champ === 'file' && isFieldVisible(champ, formValues, champsDynamiques) && champ.obligatoire) {
           if (!uploadedFiles[champ.nom_champ]) {
-            setError('Veuillez joindre la pièce obligatoire : « ' + champ.label + ' ».');
+            setError('Veuillez joindre la pièce obligatoire : « ' + (champ.label || champ.nom_champ) + ' ».');
             return;
           }
         }
@@ -392,6 +632,58 @@ export default function CitizenNewDemande({ user }) {
     }
   };
 
+  // Enregistrement des modifications d'une demande existante (sans re-paiement)
+  const handleSaveEditDemande = async () => {
+    setSubmitting(true);
+    setError('');
+
+    try {
+      // 1. Filtrer les données actives et visibles
+      const activeDonnees = {};
+      champsDynamiques.forEach(champ => {
+        if (champ.type_champ !== 'file' && champ.type_champ !== 'section' && isFieldVisible(champ, formValues, champsDynamiques)) {
+          if (formValues[champ.nom_champ] !== undefined && formValues[champ.nom_champ] !== null) {
+            activeDonnees[champ.nom_champ] = formValues[champ.nom_champ];
+          }
+        }
+      });
+      if (formValues.motif) {
+        activeDonnees.motif = formValues.motif;
+      }
+
+      // 2. Map des documents actuellement requis et visibles
+      const documentsUrlMap = {};
+      Object.keys(uploadedFiles).forEach(key => {
+        const champ = champsDynamiques.find(c => c.nom_champ === key);
+        if (!champ || isFieldVisible(champ, formValues, champsDynamiques)) {
+          documentsUrlMap[key] = uploadedFiles[key]?.url || uploadedFiles[key];
+        }
+      });
+
+      const payload = {
+        activite_id: selectedActivity?.id || editDemandeOriginal?.activite?.id || editDemandeOriginal?.activite_id,
+        centre_id: Number(selectedCentreId || editDemandeOriginal?.centre?.id || editDemandeOriginal?.centre_id),
+        centre_delivrance_id: hasTransfer && delivCentreId ? Number(delivCentreId) : null,
+        motif: formValues.motif || editDemandeOriginal?.motif || 'Démarche citoyenne SenInnov',
+        donnees: activeDonnees,
+        documents_url: documentsUrlMap,
+        montant_paye: Number(editDemandeOriginal?.montant_paye || editDemandeOriginal?.montantPaye || 0),
+        mode_paiement: editDemandeOriginal?.mode_paiement || editDemandeOriginal?.modePaiement || 'gratuit',
+        rendez_vous: editDemandeOriginal?.rendez_vous || null
+      };
+
+      await api.put(`/demandes/${urlEditId}`, payload);
+
+      navigate('/citoyen/demandes', {
+        state: { successMessage: `Votre dossier ${editDemandeOriginal?.reference || ''} a été modifié avec succès !` }
+      });
+    } catch (err) {
+      setError(err?.response?.data?.message || err.message || 'Erreur lors de la mise à jour du dossier.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   // Soumission finale de la demande avec affectation du paiement
   const handleSubmitDemande = async (isPaidConfirmation = false) => {
     setSubmitting(true);
@@ -406,12 +698,25 @@ export default function CitizenNewDemande({ user }) {
       const montant = Number(selectedActivity?.prix || 0);
       const effectiveModePaiement = isPaidConfirmation ? paymentOperator : (montant > 0 ? paymentOperator : 'gratuit');
 
+      // Filtrer les données pour n'enregistrer que les champs actuellement actifs et visibles
+      const activeDonnees = {};
+      champsDynamiques.forEach(champ => {
+        if (champ.type_champ !== 'file' && champ.type_champ !== 'section' && isFieldVisible(champ, formValues, champsDynamiques)) {
+          if (formValues[champ.nom_champ] !== undefined && formValues[champ.nom_champ] !== null) {
+            activeDonnees[champ.nom_champ] = formValues[champ.nom_champ];
+          }
+        }
+      });
+      if (formValues.motif) {
+        activeDonnees.motif = formValues.motif;
+      }
+
       const payload = {
         activite_id: selectedActivity.id,
         centre_id: Number(selectedCentreId),
         centre_delivrance_id: hasTransfer && delivCentreId ? Number(delivCentreId) : null,
         motif: formValues.motif || selectedActivity?.nom || 'Démarche citoyenne SenInnov',
-        donnees: formValues,
+        donnees: activeDonnees,
         documents_url: documentsUrlMap,
         montant_paye: montant,
         mode_paiement: effectiveModePaiement,
@@ -1277,15 +1582,60 @@ export default function CitizenNewDemande({ user }) {
       {/* ── ÉTAPE 3 : DONNÉES DU DOSSIER (FORMULAIRE DYNAMIQUE SANS MOTIF STATIQUE) ── */}
       {step === 3 && (
         <div style={{ backgroundColor: 'var(--c-bg-card, #ffffff)', borderRadius: '20px', padding: '2rem', border: '1px solid var(--c-border, #e2e8f0)', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          
+          {/* Bannière Mode Modification */}
+          {isEditMode && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              backgroundColor: 'rgba(37, 99, 235, 0.08)',
+              border: '1.5px solid #93c5fd',
+              borderRadius: '16px',
+              padding: '14px 20px',
+              color: '#1e40af'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ width: '38px', height: '38px', borderRadius: '10px', backgroundColor: '#2563eb', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Pencil size={20} />
+                </div>
+                <div>
+                  <div style={{ fontWeight: '800', fontSize: '1rem', color: 'var(--c-text-primary, #0f172a)' }}>
+                    Modification du dossier : {selectedActivity?.nom || 'Acte officiel'}
+                  </div>
+                  <div style={{ fontSize: '0.82rem', color: 'var(--c-text-muted, #64748b)', marginTop: '2px' }}>
+                    Référence : <span style={{ fontWeight: '700', color: '#2563eb' }}>{editDemandeOriginal?.reference || urlEditId}</span> • Statut : En attente
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => navigate('/citoyen/demandes')}
+                style={{
+                  backgroundColor: 'var(--c-bg-card, #ffffff)',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '10px',
+                  padding: '8px 16px',
+                  color: 'var(--c-text-secondary, #475569)',
+                  fontSize: '0.82rem',
+                  fontWeight: '700',
+                  cursor: 'pointer'
+                }}
+              >
+                Annuler
+              </button>
+            </div>
+          )}
+
           <div>
             <span style={{ fontSize: '0.78rem', fontWeight: '800', color: 'var(--c-text-muted, #64748b)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-              ÉTAPE 3
+              {isEditMode ? 'MODIFICATION DES DONNÉES' : 'ÉTAPE 3'}
             </span>
             <h2 style={{ fontSize: '1.35rem', fontWeight: '800', color: 'var(--c-text-primary, #0f172a)', margin: '4px 0 6px' }}>
-              Renseignement des informations
+              {isEditMode ? 'Corriger vos informations' : 'Renseignement des informations'}
             </h2>
             <p style={{ fontSize: '0.88rem', color: 'var(--c-text-muted, #64748b)', margin: 0 }}>
-              Complétez les données requises pour le traitement officiel de votre acte
+              {isEditMode ? 'Modifiez les informations de votre dossier avant sa prise en charge administrative' : 'Complétez les données requises pour le traitement officiel de votre acte'}
             </p>
           </div>
 
@@ -1308,22 +1658,22 @@ export default function CitizenNewDemande({ user }) {
             </div>
           )}
 
-          {/* Champs dynamiques texte / date / number / select */}
-          {champsDynamiques.filter(c => c.type_champ !== 'file').length === 0 ? (
+          {/* Champs dynamiques organisés avec sections, types riches et conditions administratives */}
+          {champsDynamiques.filter(c => c.type_champ !== 'file' && isFieldVisible(c, formValues, champsDynamiques)).length === 0 ? (
             <div style={{
               backgroundColor: 'var(--c-bg-subtle, #f8fafc)',
               borderRadius: '16px',
-              padding: '2rem',
+              padding: '2.5rem 2rem',
               border: '1px solid var(--c-border, #e2e8f0)',
               textAlign: 'center',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              gap: '10px'
+              gap: '12px'
             }}>
               <div style={{
-                width: '50px',
-                height: '50px',
+                width: '54px',
+                height: '54px',
                 borderRadius: '16px',
                 backgroundColor: '#eff6ff',
                 color: '#2563eb',
@@ -1331,81 +1681,467 @@ export default function CitizenNewDemande({ user }) {
                 alignItems: 'center',
                 justifyContent: 'center'
               }}>
-                <FileText size={26} />
+                <FileText size={28} />
               </div>
-              <div style={{ fontSize: '1rem', fontWeight: '800', color: 'var(--c-text-primary, #0f172a)' }}>
+              <div style={{ fontSize: '1.05rem', fontWeight: '800', color: 'var(--c-text-primary, #0f172a)' }}>
                 Aucune information textuelle requise
               </div>
-              <p style={{ fontSize: '0.86rem', color: 'var(--c-text-muted, #64748b)', maxWidth: '420px', margin: 0 }}>
-                Cette démarche administrative ne nécessite aucune saisie manuelle spécifique. Les informations d'identité certifiées de votre profil citoyen seront directement associées au dossier.
+              <p style={{ fontSize: '0.88rem', color: 'var(--c-text-muted, #64748b)', maxWidth: '440px', margin: 0, lineHeight: 1.5 }}>
+                Cette démarche administrative ne nécessite aucune saisie manuelle spécifique pour le moment. Les données d'identité certifiées de votre compte citoyen seront directement associées au dossier officiel.
               </p>
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem' }}>
-              {champsDynamiques.filter(c => c.type_champ !== 'file').map((champ) => {
-                const val = formValues[champ.nom_champ] || '';
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem', alignItems: 'start' }}>
+              {champsDynamiques
+                .filter(c => c.type_champ !== 'file' && isFieldVisible(c, formValues, champsDynamiques))
+                .map((champ) => {
+                  const val = formValues[champ.nom_champ] || '';
+                  const isChild = !!(champ.conditions && champ.conditions.field);
+                  const condVal = champ.conditions ? String(champ.conditions.value).toLowerCase() : '';
+                  const isFullWidth = champ.type_champ === 'section' || champ.type_champ === 'textarea' || champ.type_champ === 'yesno';
 
-                return (
-                  <div key={champ.nom_champ}>
-                    <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: '700', color: 'var(--c-text-primary, #334155)', marginBottom: '6px' }}>
-                      {champ.label} {champ.obligatoire && <span style={{ color: '#ef4444' }}>*</span>}
-                    </label>
-
-                    {champ.type_champ === 'select' ? (
-                      <select
-                        value={val}
-                        onChange={(e) => setFormValues(prev => ({ ...prev, [champ.nom_champ]: e.target.value }))}
-                        style={{ width: '100%', height: '44px', borderRadius: '12px', border: '1px solid var(--c-border, #cbd5e1)', padding: '0 12px', fontSize: '0.9rem', backgroundColor: 'var(--c-bg-subtle, #f8fafc)' }}
+                  // 1. TYPE SECTION (Bannière visuelle de section, sans saisie)
+                  if (champ.type_champ === 'section') {
+                    return (
+                      <div
+                        key={champ.nom_champ}
+                        style={{
+                          gridColumn: '1 / -1',
+                          marginTop: '0.75rem',
+                          marginBottom: '0.25rem',
+                          padding: '14px 18px',
+                          borderRadius: '14px',
+                          backgroundColor: 'var(--c-bg-subtle, #f8fafc)',
+                          borderLeft: '4px solid #2563eb',
+                          borderTop: '1px solid var(--c-border, #e2e8f0)',
+                          borderRight: '1px solid var(--c-border, #e2e8f0)',
+                          borderBottom: '1px solid var(--c-border, #e2e8f0)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '12px'
+                        }}
                       >
-                        <option value="">Sélectionner...</option>
-                        {(champ.options || []).map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                      </select>
-                    ) : champ.type_champ === 'date' ? (
-                      <input
-                        type="date"
-                        value={val}
-                        onChange={(e) => setFormValues(prev => ({ ...prev, [champ.nom_champ]: e.target.value }))}
-                        style={{ width: '100%', height: '44px', borderRadius: '12px', border: '1px solid var(--c-border, #cbd5e1)', padding: '0 12px', fontSize: '0.9rem', backgroundColor: 'var(--c-bg-subtle, #f8fafc)' }}
-                      />
-                    ) : champ.type_champ === 'number' ? (
-                      <input
-                        type="number"
-                        value={val}
-                        onChange={(e) => setFormValues(prev => ({ ...prev, [champ.nom_champ]: e.target.value }))}
-                        placeholder={champ.placeholder || ''}
-                        style={{ width: '100%', height: '44px', borderRadius: '12px', border: '1px solid var(--c-border, #cbd5e1)', padding: '0 12px', fontSize: '0.9rem', backgroundColor: 'var(--c-bg-subtle, #f8fafc)' }}
-                      />
-                    ) : champ.type_champ === 'textarea' ? (
-                      <textarea
-                        rows={3}
-                        value={val}
-                        onChange={(e) => setFormValues(prev => ({ ...prev, [champ.nom_champ]: e.target.value }))}
-                        placeholder={champ.placeholder || ''}
-                        style={{ width: '100%', borderRadius: '12px', border: '1px solid var(--c-border, #cbd5e1)', padding: '10px 12px', fontSize: '0.9rem', backgroundColor: 'var(--c-bg-subtle, #f8fafc)', resize: 'vertical' }}
-                      />
-                    ) : (
-                      <input
-                        type="text"
-                        value={val}
-                        onChange={(e) => setFormValues(prev => ({ ...prev, [champ.nom_champ]: e.target.value }))}
-                        placeholder={champ.placeholder || ''}
-                        style={{ width: '100%', height: '44px', borderRadius: '12px', border: '1px solid var(--c-border, #cbd5e1)', padding: '0 12px', fontSize: '0.9rem', backgroundColor: 'var(--c-bg-subtle, #f8fafc)' }}
-                      />
-                    )}
-                  </div>
-                );
-              })}
+                        <div style={{
+                          width: '34px',
+                          height: '34px',
+                          borderRadius: '10px',
+                          backgroundColor: 'rgba(37,99,235,0.1)',
+                          color: '#2563eb',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0
+                        }}>
+                          <Bookmark size={18} />
+                        </div>
+                        <div>
+                          <h4 style={{ margin: 0, fontSize: '0.98rem', fontWeight: '800', color: 'var(--c-text-primary, #0f172a)' }}>
+                            {champ.label}
+                          </h4>
+                          {champ.placeholder && (
+                            <span style={{ fontSize: '0.8rem', color: 'var(--c-text-muted, #64748b)' }}>
+                              {champ.placeholder}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  // 2. AUTRES TYPES DE CHAMPS DYNAMIQUES
+                  return (
+                    <div
+                      key={champ.nom_champ}
+                      style={{
+                        gridColumn: isFullWidth ? '1 / -1' : 'auto',
+                        ...(isChild ? {
+                          borderLeft: `3.5px solid ${condVal === 'oui' ? '#10b981' : (condVal === 'non' ? '#ef4444' : '#2563eb')}`,
+                          padding: '12px 14px',
+                          borderRadius: '12px',
+                          backgroundColor: 'var(--c-bg-subtle, rgba(248,250,252,0.5))',
+                          border: '1px solid var(--c-border, #e2e8f0)',
+                          borderLeftWidth: '3.5px',
+                          borderLeftColor: condVal === 'oui' ? '#10b981' : (condVal === 'non' ? '#ef4444' : '#2563eb')
+                        } : {})
+                      }}
+                    >
+                      {/* Tag d'indication de branche conditionnelle */}
+                      {isChild && (
+                        <div style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          fontSize: '0.72rem',
+                          fontWeight: '700',
+                          color: condVal === 'oui' ? '#059669' : (condVal === 'non' ? '#dc2626' : '#2563eb'),
+                          backgroundColor: condVal === 'oui' ? 'rgba(16, 185, 129, 0.12)' : (condVal === 'non' ? 'rgba(239, 68, 68, 0.12)' : 'rgba(37, 99, 235, 0.12)'),
+                          padding: '3px 8px',
+                          borderRadius: '6px',
+                          marginBottom: '8px'
+                        }}>
+                          <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: condVal === 'oui' ? '#10b981' : (condVal === 'non' ? '#ef4444' : '#2563eb') }} />
+                          <span>Branche conditionnelle : {condVal === 'oui' ? 'Si Oui' : (condVal === 'non' ? 'Si Non' : `Si ${champ.conditions.value}`)}</span>
+                        </div>
+                      )}
+
+                      <label style={{ display: 'block', fontSize: '0.84rem', fontWeight: '700', color: 'var(--c-text-primary, #334155)', marginBottom: '6px' }}>
+                        {champ.label} {champ.obligatoire && <span style={{ color: '#ef4444' }}>*</span>}
+                      </label>
+
+                      {/* QUESTION OUI / NON (yesno) */}
+                      {champ.type_champ === 'yesno' ? (
+                        <div style={{ display: 'flex', gap: 12, marginTop: 4 }}>
+                          <button
+                            type="button"
+                            onClick={() => handleFieldChange(champ.nom_champ, 'oui')}
+                            style={{
+                              flex: 1,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: 8,
+                              padding: '12px 16px',
+                              borderRadius: '12px',
+                              border: '1.5px solid',
+                              borderColor: val === 'oui' ? '#10b981' : 'var(--c-border, #cbd5e1)',
+                              backgroundColor: val === 'oui' ? 'rgba(16, 185, 129, 0.14)' : 'var(--c-bg-subtle, #f8fafc)',
+                              color: val === 'oui' ? '#059669' : 'var(--c-text-secondary, #475569)',
+                              fontWeight: '700',
+                              fontSize: '0.92rem',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease'
+                            }}
+                          >
+                            <div style={{
+                              width: 18,
+                              height: 18,
+                              borderRadius: '50%',
+                              border: '2px solid',
+                              borderColor: val === 'oui' ? '#10b981' : '#94a3b8',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}>
+                              {val === 'oui' && <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#10b981' }} />}
+                            </div>
+                            <span>Oui</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleFieldChange(champ.nom_champ, 'non')}
+                            style={{
+                              flex: 1,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: 8,
+                              padding: '12px 16px',
+                              borderRadius: '12px',
+                              border: '1.5px solid',
+                              borderColor: val === 'non' ? '#ef4444' : 'var(--c-border, #cbd5e1)',
+                              backgroundColor: val === 'non' ? 'rgba(239, 68, 68, 0.14)' : 'var(--c-bg-subtle, #f8fafc)',
+                              color: val === 'non' ? '#dc2626' : 'var(--c-text-secondary, #475569)',
+                              fontWeight: '700',
+                              fontSize: '0.92rem',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease'
+                            }}
+                          >
+                            <div style={{
+                              width: 18,
+                              height: 18,
+                              borderRadius: '50%',
+                              border: '2px solid',
+                              borderColor: val === 'non' ? '#ef4444' : '#94a3b8',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}>
+                              {val === 'non' && <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#ef4444' }} />}
+                            </div>
+                            <span>Non</span>
+                          </button>
+                        </div>
+                      ) : champ.type_champ === 'sexe' ? (
+                        <div style={{ display: 'flex', gap: 12, marginTop: 4 }}>
+                          {['Masculin', 'Féminin'].map(s => {
+                            const isSel = val === s;
+                            return (
+                              <button
+                                key={s}
+                                type="button"
+                                onClick={() => handleFieldChange(champ.nom_champ, s)}
+                                style={{
+                                  flex: 1,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: 8,
+                                  padding: '11px 16px',
+                                  borderRadius: '12px',
+                                  border: '1.5px solid',
+                                  borderColor: isSel ? '#2563eb' : 'var(--c-border, #cbd5e1)',
+                                  backgroundColor: isSel ? 'rgba(37, 99, 235, 0.12)' : 'var(--c-bg-subtle, #f8fafc)',
+                                  color: isSel ? '#2563eb' : 'var(--c-text-secondary, #475569)',
+                                  fontWeight: '700',
+                                  fontSize: '0.9rem',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.15s ease'
+                                }}
+                              >
+                                <Users size={16} color={isSel ? '#2563eb' : '#64748b'} />
+                                <span>{s}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : champ.type_champ === 'select' ? (
+                        <select
+                          value={val}
+                          onChange={(e) => handleFieldChange(champ.nom_champ, e.target.value)}
+                          style={{
+                            width: '100%',
+                            height: '44px',
+                            borderRadius: '12px',
+                            border: '1px solid var(--c-border, #cbd5e1)',
+                            padding: '0 12px',
+                            fontSize: '0.9rem',
+                            backgroundColor: 'var(--c-bg-subtle, #f8fafc)',
+                            color: 'var(--c-text-primary, #0f172a)'
+                          }}
+                        >
+                          <option value="">{champ.placeholder || 'Sélectionner…'}</option>
+                          {(champ.options || []).map((opt, oIdx) => {
+                            const optVal = typeof opt === 'object' ? opt.value : opt;
+                            const optLbl = typeof opt === 'object' ? (opt.label || opt.value) : opt;
+                            return <option key={oIdx} value={optVal}>{optLbl}</option>;
+                          })}
+                        </select>
+                      ) : champ.type_champ === 'region' ? (
+                        <select
+                          value={val}
+                          onChange={(e) => handleFieldChange(champ.nom_champ, e.target.value)}
+                          style={{
+                            width: '100%',
+                            height: '44px',
+                            borderRadius: '12px',
+                            border: '1px solid var(--c-border, #cbd5e1)',
+                            padding: '0 12px',
+                            fontSize: '0.9rem',
+                            backgroundColor: 'var(--c-bg-subtle, #f8fafc)',
+                            color: 'var(--c-text-primary, #0f172a)'
+                          }}
+                        >
+                          <option value="">Sélectionner une région…</option>
+                          {regions.map(r => <option key={r.id} value={r.nom}>{r.nom}</option>)}
+                        </select>
+                      ) : champ.type_champ === 'departement' ? (
+                        <select
+                          value={val}
+                          onChange={(e) => handleFieldChange(champ.nom_champ, e.target.value)}
+                          style={{
+                            width: '100%',
+                            height: '44px',
+                            borderRadius: '12px',
+                            border: '1px solid var(--c-border, #cbd5e1)',
+                            padding: '0 12px',
+                            fontSize: '0.9rem',
+                            backgroundColor: 'var(--c-bg-subtle, #f8fafc)',
+                            color: 'var(--c-text-primary, #0f172a)'
+                          }}
+                        >
+                          <option value="">Sélectionner un département…</option>
+                          {departements.map(d => <option key={d.id} value={d.nom}>{d.nom}</option>)}
+                        </select>
+                      ) : champ.type_champ === 'commune' ? (
+                        <select
+                          value={val}
+                          onChange={(e) => handleFieldChange(champ.nom_champ, e.target.value)}
+                          style={{
+                            width: '100%',
+                            height: '44px',
+                            borderRadius: '12px',
+                            border: '1px solid var(--c-border, #cbd5e1)',
+                            padding: '0 12px',
+                            fontSize: '0.9rem',
+                            backgroundColor: 'var(--c-bg-subtle, #f8fafc)',
+                            color: 'var(--c-text-primary, #0f172a)'
+                          }}
+                        >
+                          <option value="">Sélectionner une commune…</option>
+                          {communes.map(c => <option key={c.id} value={c.nom}>{c.nom}</option>)}
+                        </select>
+                      ) : champ.type_champ === 'centre' ? (
+                        <select
+                          value={val}
+                          onChange={(e) => handleFieldChange(champ.nom_champ, e.target.value)}
+                          style={{
+                            width: '100%',
+                            height: '44px',
+                            borderRadius: '12px',
+                            border: '1px solid var(--c-border, #cbd5e1)',
+                            padding: '0 12px',
+                            fontSize: '0.9rem',
+                            backgroundColor: 'var(--c-bg-subtle, #f8fafc)',
+                            color: 'var(--c-text-primary, #0f172a)'
+                          }}
+                        >
+                          <option value="">Sélectionner un centre d'état civil…</option>
+                          {centres.map(c => <option key={c.id} value={c.nom}>{c.nom}</option>)}
+                        </select>
+                      ) : champ.type_champ === 'phone' ? (
+                        <div style={{ position: 'relative' }}>
+                          <Smartphone size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                          <input
+                            type="tel"
+                            value={val}
+                            onChange={(e) => handleFieldChange(champ.nom_champ, e.target.value)}
+                            placeholder={champ.placeholder || 'Ex : 77 123 45 67'}
+                            style={{
+                              width: '100%',
+                              height: '44px',
+                              borderRadius: '12px',
+                              border: '1px solid var(--c-border, #cbd5e1)',
+                              paddingLeft: '38px',
+                              paddingRight: '12px',
+                              fontSize: '0.9rem',
+                              backgroundColor: 'var(--c-bg-subtle, #f8fafc)',
+                              color: 'var(--c-text-primary, #0f172a)'
+                            }}
+                          />
+                        </div>
+                      ) : champ.type_champ === 'date' ? (
+                        <input
+                          type="date"
+                          value={val}
+                          onChange={(e) => handleFieldChange(champ.nom_champ, e.target.value)}
+                          style={{
+                            width: '100%',
+                            height: '44px',
+                            borderRadius: '12px',
+                            border: '1px solid var(--c-border, #cbd5e1)',
+                            padding: '0 12px',
+                            fontSize: '0.9rem',
+                            backgroundColor: 'var(--c-bg-subtle, #f8fafc)',
+                            color: 'var(--c-text-primary, #0f172a)'
+                          }}
+                        />
+                      ) : champ.type_champ === 'time' ? (
+                        <input
+                          type="time"
+                          value={val}
+                          onChange={(e) => handleFieldChange(champ.nom_champ, e.target.value)}
+                          style={{
+                            width: '100%',
+                            height: '44px',
+                            borderRadius: '12px',
+                            border: '1px solid var(--c-border, #cbd5e1)',
+                            padding: '0 12px',
+                            fontSize: '0.9rem',
+                            backgroundColor: 'var(--c-bg-subtle, #f8fafc)',
+                            color: 'var(--c-text-primary, #0f172a)'
+                          }}
+                        />
+                      ) : champ.type_champ === 'number' ? (
+                        <input
+                          type="number"
+                          value={val}
+                          onChange={(e) => handleFieldChange(champ.nom_champ, e.target.value)}
+                          placeholder={champ.placeholder || ''}
+                          style={{
+                            width: '100%',
+                            height: '44px',
+                            borderRadius: '12px',
+                            border: '1px solid var(--c-border, #cbd5e1)',
+                            padding: '0 12px',
+                            fontSize: '0.9rem',
+                            backgroundColor: 'var(--c-bg-subtle, #f8fafc)',
+                            color: 'var(--c-text-primary, #0f172a)'
+                          }}
+                        />
+                      ) : champ.type_champ === 'textarea' ? (
+                        <textarea
+                          rows={3}
+                          value={val}
+                          onChange={(e) => handleFieldChange(champ.nom_champ, e.target.value)}
+                          placeholder={champ.placeholder || ''}
+                          style={{
+                            width: '100%',
+                            borderRadius: '12px',
+                            border: '1px solid var(--c-border, #cbd5e1)',
+                            padding: '10px 12px',
+                            fontSize: '0.9rem',
+                            backgroundColor: 'var(--c-bg-subtle, #f8fafc)',
+                            color: 'var(--c-text-primary, #0f172a)',
+                            resize: 'vertical'
+                          }}
+                        />
+                      ) : (
+                        <input
+                          type="text"
+                          value={val}
+                          onChange={(e) => handleFieldChange(champ.nom_champ, e.target.value)}
+                          placeholder={champ.placeholder || ''}
+                          style={{
+                            width: '100%',
+                            height: '44px',
+                            borderRadius: '12px',
+                            border: '1px solid var(--c-border, #cbd5e1)',
+                            padding: '0 12px',
+                            fontSize: '0.9rem',
+                            backgroundColor: 'var(--c-bg-subtle, #f8fafc)',
+                            color: 'var(--c-text-primary, #0f172a)'
+                          }}
+                        />
+                      )}
+                    </div>
+                  );
+                })}
             </div>
           )}
 
           {/* Boutons d'étape */}
           <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #f1f5f9', paddingTop: '1.25rem' }}>
-            <button type="button" onClick={goToPrevStep} style={{ padding: '10px 20px', borderRadius: '12px', border: '1px solid var(--c-border, #cbd5e1)', backgroundColor: 'var(--c-bg-card, #ffffff)', fontWeight: '600', cursor: 'pointer' }}>
-              Précédent
-            </button>
-            <button type="button" onClick={goToNextStep} style={{ padding: '10px 24px', borderRadius: '12px', border: 'none', backgroundColor: '#2563eb', color: '#ffffff', fontWeight: '700', cursor: 'pointer' }}>
-              {hasDocumentStep ? 'Continuer vers les pièces jointes' : (isFreeActivity ? 'Continuer vers la confirmation' : 'Continuer vers le résumé & paiement')}
-            </button>
+            {isEditMode ? (
+              <button
+                type="button"
+                onClick={() => navigate('/citoyen/demandes')}
+                style={{ padding: '10px 20px', borderRadius: '12px', border: '1px solid var(--c-border, #cbd5e1)', backgroundColor: 'var(--c-bg-card, #ffffff)', color: 'var(--c-text-secondary, #475569)', fontWeight: '700', cursor: 'pointer' }}
+              >
+                Annuler la modification
+              </button>
+            ) : (
+              <button type="button" onClick={goToPrevStep} style={{ padding: '10px 20px', borderRadius: '12px', border: '1px solid var(--c-border, #cbd5e1)', backgroundColor: 'var(--c-bg-card, #ffffff)', fontWeight: '600', cursor: 'pointer' }}>
+                Précédent
+              </button>
+            )}
+
+            {isEditMode ? (
+              hasDocumentStep ? (
+                <button
+                  type="button"
+                  onClick={goToNextStep}
+                  style={{ padding: '10px 24px', borderRadius: '12px', border: 'none', backgroundColor: '#2563eb', color: '#ffffff', fontWeight: '700', cursor: 'pointer' }}
+                >
+                  Continuer vers les pièces jointes
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleSaveEditDemande}
+                  disabled={submitting}
+                  style={{ padding: '10px 24px', borderRadius: '12px', border: 'none', backgroundColor: '#10b981', color: '#ffffff', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
+                >
+                  <CheckCircle2 size={18} />
+                  <span>{submitting ? 'Enregistrement...' : 'Enregistrer les modifications'}</span>
+                </button>
+              )
+            ) : (
+              <button type="button" onClick={goToNextStep} style={{ padding: '10px 24px', borderRadius: '12px', border: 'none', backgroundColor: '#2563eb', color: '#ffffff', fontWeight: '700', cursor: 'pointer' }}>
+                {hasDocumentStep ? 'Continuer vers les pièces jointes' : (isFreeActivity ? 'Continuer vers la confirmation' : 'Continuer vers le résumé & paiement')}
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -1425,9 +2161,11 @@ export default function CitizenNewDemande({ user }) {
             </p>
           </div>
 
-          {/* Liste des champs de type file */}
+          {/* Liste des champs de type file VISIBLES selon les conditions administratives */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {champsDynamiques.filter(c => c.type_champ === 'file').map((champ) => {
+            {champsDynamiques
+              .filter(c => c.type_champ === 'file' && isFieldVisible(c, formValues, champsDynamiques))
+              .map((champ) => {
               const fileObj = uploadedFiles[champ.nom_champ];
               const isUploading = uploadingField === champ.nom_champ;
 
@@ -1525,11 +2263,24 @@ export default function CitizenNewDemande({ user }) {
           {/* Boutons d'étape */}
           <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #f1f5f9', paddingTop: '1.25rem' }}>
             <button type="button" onClick={goToPrevStep} style={{ padding: '10px 20px', borderRadius: '12px', border: '1px solid var(--c-border, #cbd5e1)', backgroundColor: 'var(--c-bg-card, #ffffff)', fontWeight: '600', cursor: 'pointer' }}>
-              Précédent
+              Précédent (Données)
             </button>
-            <button type="button" onClick={goToNextStep} style={{ padding: '10px 24px', borderRadius: '12px', border: 'none', backgroundColor: '#2563eb', color: '#ffffff', fontWeight: '700', cursor: 'pointer' }}>
-              {isFreeActivity ? 'Continuer vers la confirmation' : 'Continuer vers le résumé & paiement'}
-            </button>
+
+            {isEditMode ? (
+              <button
+                type="button"
+                onClick={handleSaveEditDemande}
+                disabled={submitting}
+                style={{ padding: '10px 24px', borderRadius: '12px', border: 'none', backgroundColor: '#10b981', color: '#ffffff', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
+              >
+                <CheckCircle2 size={18} />
+                <span>{submitting ? 'Enregistrement...' : 'Enregistrer les modifications'}</span>
+              </button>
+            ) : (
+              <button type="button" onClick={goToNextStep} style={{ padding: '10px 24px', borderRadius: '12px', border: 'none', backgroundColor: '#2563eb', color: '#ffffff', fontWeight: '700', cursor: 'pointer' }}>
+                {isFreeActivity ? 'Continuer vers la confirmation' : 'Continuer vers le résumé & paiement'}
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -1573,7 +2324,24 @@ export default function CitizenNewDemande({ user }) {
                 </span>
               </div>
             )}
-            <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '4px' }}>
+            {/* Données dynamiques certifiées et visibles */}
+            {champsDynamiques.filter(c => c.type_champ !== 'file' && c.type_champ !== 'section' && isFieldVisible(c, formValues, champsDynamiques) && formValues[c.nom_champ]).length > 0 && (
+              <div style={{ marginTop: '8px', paddingTop: '10px', borderTop: '1px dashed var(--c-border, #cbd5e1)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <span style={{ fontSize: '0.78rem', fontWeight: '800', color: 'var(--c-text-muted, #64748b)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Informations transmises dans le dossier
+                </span>
+                {champsDynamiques
+                  .filter(c => c.type_champ !== 'file' && c.type_champ !== 'section' && isFieldVisible(c, formValues, champsDynamiques) && formValues[c.nom_champ])
+                  .map(c => (
+                    <div key={c.nom_champ} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                      <span style={{ color: 'var(--c-text-muted, #64748b)' }}>{c.label} :</span>
+                      <span style={{ fontWeight: '700', color: 'var(--c-text-primary, #0f172a)' }}>{formValues[c.nom_champ]}</span>
+                    </div>
+                  ))}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '8px', borderTop: '1px solid #e2e8f0' }}>
               <span style={{ color: 'var(--c-text-primary, #0f172a)', fontWeight: '800', fontSize: '0.95rem' }}>Montant total de la démarche :</span>
               <span style={{ color: Number(selectedActivity?.prix || 0) === 0 ? '#10b981' : '#2563eb', fontWeight: '800', fontSize: '1.2rem' }}>
                 {Number(selectedActivity?.prix || 0) === 0 ? 'Gratuit (0 FCFA)' : (Number(selectedActivity?.prix).toLocaleString('fr-FR') + ' FCFA')}

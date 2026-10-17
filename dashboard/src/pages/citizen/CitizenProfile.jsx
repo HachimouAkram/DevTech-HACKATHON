@@ -50,6 +50,63 @@ const FAQ_ITEMS = [
   }
 ];
 
+// Section Header Component declared outside of render
+const SectionHeader = ({ title, subtitle, onBack }) => (
+  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '10px' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+      <button
+        type="button"
+        onClick={onBack}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: '38px',
+          height: '38px',
+          borderRadius: '12px',
+          border: '1px solid var(--border-color, #e2e8f0)',
+          backgroundColor: 'var(--bg-card, #ffffff)',
+          color: 'var(--text-primary, #0f172a)',
+          cursor: 'pointer',
+          transition: 'all 0.2s'
+        }}
+        title="Retour au menu principal"
+      >
+        <ArrowLeft size={18} />
+      </button>
+      <div>
+        <h2 style={{ fontSize: '1.3rem', fontWeight: '800', color: 'var(--text-primary, #0f172a)', margin: 0 }}>
+          {title}
+        </h2>
+        {subtitle && (
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary, #64748b)', margin: 0 }}>
+            {subtitle}
+          </p>
+        )}
+      </div>
+    </div>
+    <button
+      type="button"
+      onClick={onBack}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '6px',
+        fontSize: '0.82rem',
+        fontWeight: '700',
+        color: '#2563eb',
+        backgroundColor: 'rgba(37, 99, 235, 0.08)',
+        border: '1px solid rgba(37, 99, 235, 0.15)',
+        padding: '7px 14px',
+        borderRadius: '10px',
+        cursor: 'pointer'
+      }}
+    >
+      <span>Vue d'ensemble</span>
+    </button>
+  </div>
+);
+
 export default function CitizenProfile({ user: initialUser, token, onLogout }) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -479,62 +536,7 @@ export default function CitizenProfile({ user: initialUser, token, onLogout }) {
     }
   };
 
-  // Section Header Component
-  const SectionHeader = ({ title, subtitle }) => (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '10px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-        <button
-          type="button"
-          onClick={() => setSection('main')}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: '38px',
-            height: '38px',
-            borderRadius: '12px',
-            border: '1px solid var(--border-color, #e2e8f0)',
-            backgroundColor: 'var(--bg-card, #ffffff)',
-            color: 'var(--text-primary, #0f172a)',
-            cursor: 'pointer',
-            transition: 'all 0.2s'
-          }}
-          title="Retour au menu principal"
-        >
-          <ArrowLeft size={18} />
-        </button>
-        <div>
-          <h2 style={{ fontSize: '1.3rem', fontWeight: '800', color: 'var(--text-primary, #0f172a)', margin: 0 }}>
-            {title}
-          </h2>
-          {subtitle && (
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary, #64748b)', margin: 0 }}>
-              {subtitle}
-            </p>
-          )}
-        </div>
-      </div>
-      <button
-        type="button"
-        onClick={() => setSection('main')}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '6px',
-          fontSize: '0.82rem',
-          fontWeight: '700',
-          color: '#2563eb',
-          backgroundColor: 'rgba(37, 99, 235, 0.08)',
-          border: '1px solid rgba(37, 99, 235, 0.15)',
-          padding: '7px 14px',
-          borderRadius: '10px',
-          cursor: 'pointer'
-        }}
-      >
-        <span>Vue d'ensemble</span>
-      </button>
-    </div>
-  );
+  const handleBackToMain = () => setSection('main');
 
   return (
     <div style={{ maxWidth: '980px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
@@ -1130,7 +1132,7 @@ export default function CitizenProfile({ user: initialUser, token, onLogout }) {
       {/* ========================================================================= */}
       {activeSection === 'profile' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          <SectionHeader
+          <SectionHeader onBack={handleBackToMain}
             title="Mon Profil & Coordonnées"
             subtitle="Modifiez vos informations personnelles et identifiants officiels"
           />
@@ -1354,7 +1356,7 @@ export default function CitizenProfile({ user: initialUser, token, onLogout }) {
       {/* ========================================================================= */}
       {activeSection === 'security' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          <SectionHeader
+          <SectionHeader onBack={handleBackToMain}
             title="Sécurité & Authentification"
             subtitle="Modifiez votre mot de passe et gérez la confidentialité de votre compte"
           />
@@ -1669,7 +1671,7 @@ export default function CitizenProfile({ user: initialUser, token, onLogout }) {
       {/* ========================================================================= */}
       {activeSection === 'favorites' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          <SectionHeader
+          <SectionHeader onBack={handleBackToMain}
             title="Mes Démarches Favorites"
             subtitle="Accédez en 1 clic à vos actes les plus couramment demandés"
           />
@@ -1786,7 +1788,7 @@ export default function CitizenProfile({ user: initialUser, token, onLogout }) {
       {/* ========================================================================= */}
       {activeSection === 'downloads' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          <SectionHeader
+          <SectionHeader onBack={handleBackToMain}
             title="Mes Documents & Actes Signés"
             subtitle="Téléchargez ou imprimez vos actes officiels portant la signature électronique certifiée"
           />
@@ -1983,7 +1985,7 @@ export default function CitizenProfile({ user: initialUser, token, onLogout }) {
       {/* ========================================================================= */}
       {activeSection === 'voice' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          <SectionHeader
+          <SectionHeader onBack={handleBackToMain}
             title="Assistant & Navigation Vocale"
             subtitle="Configurez la reconnaissance vocale et découvrez toutes les commandes pour piloter la plateforme à la voix"
           />
@@ -2134,7 +2136,7 @@ export default function CitizenProfile({ user: initialUser, token, onLogout }) {
       {/* ========================================================================= */}
       {activeSection === 'notifications' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          <SectionHeader
+          <SectionHeader onBack={handleBackToMain}
             title="Notifications & Canaux d'Alerte"
             subtitle="Choisissez comment être informé du traitement de vos actes et convocations"
           />
@@ -2217,7 +2219,7 @@ export default function CitizenProfile({ user: initialUser, token, onLogout }) {
       {/* ========================================================================= */}
       {activeSection === 'faq' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          <SectionHeader
+          <SectionHeader onBack={handleBackToMain}
             title="Foire Aux Questions (FAQ)"
             subtitle="Consultez les réponses officielles aux 9 questions clés concernant vos démarches administratives"
           />
@@ -2353,7 +2355,7 @@ export default function CitizenProfile({ user: initialUser, token, onLogout }) {
       {/* ========================================================================= */}
       {activeSection === 'help' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          <SectionHeader
+          <SectionHeader onBack={handleBackToMain}
             title="Centre d'Aide & Support"
             subtitle="Nos agents municipaux sont à votre écoute pour vous guider"
           />
@@ -2490,7 +2492,7 @@ export default function CitizenProfile({ user: initialUser, token, onLogout }) {
       {/* ========================================================================= */}
       {activeSection === 'api' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          <SectionHeader
+          <SectionHeader onBack={handleBackToMain}
             title="Configuration API & Diagnostic Réseau"
             subtitle="Consultez l'état de la connexion au serveur d'état civil"
           />
@@ -2606,7 +2608,7 @@ export default function CitizenProfile({ user: initialUser, token, onLogout }) {
       {/* ========================================================================= */}
       {activeSection === 'references' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          <SectionHeader
+          <SectionHeader onBack={handleBackToMain}
             title="Références & Avis Citoyen"
             subtitle="Choisissez la langue d'affichage et partagez vos impressions"
           />

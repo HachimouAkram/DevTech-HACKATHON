@@ -175,7 +175,7 @@ export default function CitizenActes({ user, token }) {
           year: 'numeric'
         });
       }
-    } catch (e) {}
+    } catch (e) { /* ignore */ }
     return dateStr;
   };
 
@@ -728,7 +728,7 @@ export default function CitizenActes({ user, token }) {
                     <span>Réf : {acte.reference || ('DEM-' + acte.id)}</span>
                     <span style={{ color: '#cbd5e1' }}>•</span>
                     <span style={{ color: 'var(--c-text-muted, #64748b)', fontWeight: '500' }}>
-                      Volet N° {new Date(acte.date_creation || Date.now()).getFullYear()}/{String(acte.id).padStart(4, '0')}
+                      Volet N° {acte.date_creation ? new Date(acte.date_creation).getFullYear() : 2026}/{String(acte.id).padStart(4, '0')}
                     </span>
                   </div>
 

@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   FileText, Search, PlusCircle, Clock, CheckCircle2, Download,
-  Eye, AlertCircle, ChevronRight, Filter, Calendar, X, RefreshCw
+  Eye, AlertCircle, ChevronRight, Filter, Calendar, X, RefreshCw, Pencil
 } from 'lucide-react';
 import api from '../../utils/api';
 
 export default function CitizenDemandesList({ user }) {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [toastMsg, setToastMsg] = useState(location.state?.successMessage || '');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [demandes, setDemandes] = useState([]);
@@ -374,6 +376,28 @@ export default function CitizenDemandesList({ user }) {
                   }}>
                     {badge.label}
                   </span>
+
+                  {d.statut === 'en_attente' && (
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/citoyen/demande/nouvelle?editId=${d.id}`)}
+                      style={{
+                        padding: '8px 14px',
+                        borderRadius: '10px',
+                        border: '1px solid #bfdbfe',
+                        backgroundColor: '#eff6ff',
+                        fontSize: '0.82rem',
+                        fontWeight: '700',
+                        color: '#2563eb',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}
+                    >
+                      <Pencil size={14} /> Modifier
+                    </button>
+                  )}
 
                   <button
                     type="button"

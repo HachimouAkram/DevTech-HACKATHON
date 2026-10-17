@@ -70,7 +70,7 @@ export default function CitizenAiFloatingWidget({ user }) {
       try {
         setMessages(JSON.parse(saved));
         return;
-      } catch (e) {}
+      } catch (e) { /* ignore */ }
     }
 
     setMessages([

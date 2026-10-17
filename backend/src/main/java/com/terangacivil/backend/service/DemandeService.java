@@ -132,6 +132,12 @@ public class DemandeService {
         return new DemandeResponse(saved);
     }
 
+    public DemandeResponse getDemandeById(Integer id, User currentUser) {
+        Demande demande = demandeRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Demande non trouvée."));
+        return new DemandeResponse(demande);
+    }
+
     @Transactional
     public DemandeResponse updateDemande(Integer id, DemandeRequest request, User currentUser) {
         Demande demande = demandeRepository.findById(id)
