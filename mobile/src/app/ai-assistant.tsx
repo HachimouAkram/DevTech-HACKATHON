@@ -209,7 +209,7 @@ export default function AIAssistantScreen() {
       await AsyncStorage.setItem('@ai_last_session_id', newSession.id);
       setShowHistory(false);
       if (showNotification) {
-        Alert.alert("Nouvelle discussion", "Posez votre première question à Teranga Civil !");
+        Alert.alert("Nouvelle discussion", "Posez votre première question à SenInnov !");
       }
     } catch (err) {
       Alert.alert("Erreur", "Impossible de créer une nouvelle discussion.");
@@ -527,7 +527,7 @@ export default function AIAssistantScreen() {
         </TouchableOpacity>
         
         <View style={styles.headerTitleContainer}>
-          <Text style={[styles.headerTitle, { color: theme.text }]} numberOfLines={1}>Teranga Civil</Text>
+          <Text style={[styles.headerTitle, { color: theme.text }]} numberOfLines={1}>SenInnov</Text>
           <View style={styles.statusIndicatorRow}>
             <View style={styles.onlineDot} />
             <Text style={[styles.headerSubtitle, { color: theme.textSecondary }]}>Assistant démarches</Text>
@@ -571,7 +571,7 @@ export default function AIAssistantScreen() {
                 end={{ x: 1, y: 1 }}
               >
                 <Bot size={44} color="#2563eb" style={{ marginBottom: 12 }} />
-                <Text style={[styles.emptyTitle, { color: theme.text }]}>Teranga Civil</Text>
+                <Text style={[styles.emptyTitle, { color: theme.text }]}>SenInnov</Text>
                 <Text style={[styles.emptyDesc, { color: theme.textSecondary }]}>
                   Bonjour ! Je suis votre conseiller virtuel pour vos démarches administratives au Sénégal.
                 </Text>

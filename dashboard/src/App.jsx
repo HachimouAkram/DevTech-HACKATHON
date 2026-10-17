@@ -24,7 +24,19 @@ import PointagePresence from './pages/PointagePresence';
 import { ToastProvider } from './components/Toast';
 import Layout from './components/layout/Layout';
 import ProtectedRoute from './components/auth/ProtectedRoute';
+import LandingPage from './pages/LandingPage';
 import api from './utils/api';
+import { isCitizenUser } from './utils/roles';
+import CitizenLayout from './components/citizen/CitizenLayout';
+import CitizenHome from './pages/citizen/CitizenHome';
+import CitizenDemandesList from './pages/citizen/CitizenDemandesList';
+import CitizenNewDemande from './pages/citizen/CitizenNewDemande';
+import CitizenDemandeDetail from './pages/citizen/CitizenDemandeDetail';
+import CitizenRendezVous from './pages/citizen/CitizenRendezVous';
+import CitizenActes from './pages/citizen/CitizenActes';
+import CitizenAiAssistant from './pages/citizen/CitizenAiAssistant';
+import CitizenProfile from './pages/citizen/CitizenProfile';
+
 
 export default function App() {
   const [user, setUser] = useState(JSON.parse(localStorage.getItem('user')));
@@ -57,8 +69,13 @@ export default function App() {
         <ErrorBoundary>
           <Routes>
             <Route
+              path="/"
+              element={<LandingPage user={user} onLogout={handleLogout} />}
+            />
+
+            <Route
               path="/login"
-              element={user ? <Navigate to="/dashboard" replace /> : <Login onLogin={handleLogin} />}
+              element={user ? <Navigate to={isCitizenUser(user) ? "/citoyen" : "/dashboard"} replace /> : <Login onLogin={handleLogin} />}
             />
 
             <Route
@@ -91,9 +108,13 @@ export default function App() {
               path="/dashboard"
               element={
                 user ? (
-                  <Layout user={user} onLogout={handleLogout}>
-                    <DashboardHome token={token} currentUser={user} />
-                  </Layout>
+                  isCitizenUser(user) ? (
+                    <Navigate to="/citoyen" replace />
+                  ) : (
+                    <Layout user={user} onLogout={handleLogout}>
+                      <DashboardHome token={token} currentUser={user} />
+                    </Layout>
+                  )
                 ) : (
                   <Navigate to="/login" replace />
                 )
@@ -377,7 +398,144 @@ export default function App() {
               }
             />
 
-            <Route path="*" element={<Navigate to={user ? "/dashboard" : "/login"} replace />} />
+            
+            {/* ================= CITIZEN PORTAL ROUTES ================= */}
+            <Route
+              path="/citoyen"
+              element={
+                user ? (
+                  <CitizenLayout user={user} onLogout={handleLogout}>
+                    <ErrorBoundary>
+                      <CitizenHome user={user} token={token} />
+                    </ErrorBoundary>
+                  </CitizenLayout>
+                ) : (
+                  <Navigate to="/login" replace />
+                )
+              }
+            />
+
+            <Route
+              path="/citoyen/demandes"
+              element={
+                user ? (
+                  <CitizenLayout user={user} onLogout={handleLogout}>
+                    <ErrorBoundary>
+                      <CitizenDemandesList user={user} token={token} />
+                    </ErrorBoundary>
+                  </CitizenLayout>
+                ) : (
+                  <Navigate to="/login" replace />
+                )
+              }
+            />
+
+            <Route
+              path="/citoyen/demande/nouvelle"
+              element={
+                user ? (
+                  <CitizenLayout user={user} onLogout={handleLogout}>
+                    <ErrorBoundary>
+                      <CitizenNewDemande user={user} token={token} />
+                    </ErrorBoundary>
+                  </CitizenLayout>
+                ) : (
+                  <Navigate to="/login" replace />
+                )
+              }
+            />
+
+            <Route
+              path="/citoyen/demande/:id"
+              element={
+                user ? (
+                  <CitizenLayout user={user} onLogout={handleLogout}>
+                    <ErrorBoundary>
+                      <CitizenDemandeDetail user={user} token={token} />
+                    </ErrorBoundary>
+                  </CitizenLayout>
+                ) : (
+                  <Navigate to="/login" replace />
+                )
+              }
+            />
+
+            <Route
+              path="/citoyen/rendez-vous"
+              element={
+                user ? (
+                  <CitizenLayout user={user} onLogout={handleLogout}>
+                    <ErrorBoundary>
+                      <CitizenRendezVous user={user} token={token} />
+                    </ErrorBoundary>
+                  </CitizenLayout>
+                ) : (
+                  <Navigate to="/login" replace />
+                )
+              }
+            />
+
+            <Route
+              path="/citoyen/actes"
+              element={
+                user ? (
+                  <CitizenLayout user={user} onLogout={handleLogout}>
+                    <ErrorBoundary>
+                      <CitizenActes user={user} token={token} />
+                    </ErrorBoundary>
+                  </CitizenLayout>
+                ) : (
+                  <Navigate to="/login" replace />
+                )
+              }
+            />
+
+            <Route
+              path="/citoyen/assistant-ia"
+              element={
+                user ? (
+                  <CitizenLayout user={user} onLogout={handleLogout}>
+                    <ErrorBoundary>
+                      <CitizenAiAssistant user={user} token={token} />
+                    </ErrorBoundary>
+                  </CitizenLayout>
+                ) : (
+                  <Navigate to="/login" replace />
+                )
+              }
+            />
+
+            <Route
+              path="/citoyen/profil"
+              element={
+                user ? (
+                  <CitizenLayout user={user} onLogout={handleLogout}>
+                    <ErrorBoundary>
+                      <CitizenProfile user={user} token={token} onLogout={handleLogout} />
+                    </ErrorBoundary>
+                  </CitizenLayout>
+                ) : (
+                  <Navigate to="/login" replace />
+                )
+              }
+            />
+
+            <Route
+              path="/citoyen/parametres"
+              element={
+                user ? (
+                  <CitizenLayout user={user} onLogout={handleLogout}>
+                    <ErrorBoundary>
+                      <CitizenProfile user={user} token={token} onLogout={handleLogout} />
+                    </ErrorBoundary>
+                  </CitizenLayout>
+                ) : (
+                  <Navigate to="/login" replace />
+                )
+              }
+            />
+
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </ErrorBoundary>
       </BrowserRouter>

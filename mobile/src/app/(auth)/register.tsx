@@ -152,13 +152,13 @@ export default function RegisterScreen() {
             <View style={[styles.logoContainer, { backgroundColor: '#ffffff' }]}>
               <Image
                 source={require('../../../assets/images/logo.png')}
-                style={{ width: '82%', height: '82%' }}
+                style={{ width: '94%', height: '94%' }}
                 contentFit="contain"
               />
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-              <Text style={{ fontSize: 22, fontWeight: '800', color: theme.text, letterSpacing: -0.5 }}>Teranga</Text>
-              <Text style={{ fontSize: 22, fontWeight: '800', color: '#2563eb', letterSpacing: -0.5 }}>Civil</Text>
+              <Text style={{ fontSize: 22, fontWeight: '800', color: theme.text, letterSpacing: -0.5 }}>SenInnov</Text>
+              <Text style={{ fontSize: 22, fontWeight: '800', color: '#2563eb', letterSpacing: -0.5 }}>Innov</Text>
             </View>
             <Text style={[styles.title, { color: theme.text }]}>Créer votre compte</Text>
             <Text style={[styles.subtitle, { color: theme.textSecondary }]}>Enregistrez vos coordonnées pour accéder{'\n'}aux services de démarche en ligne</Text>
@@ -411,8 +411,8 @@ const styles = StyleSheet.create({
     marginBottom: 28,
   },
   logoContainer: {
-    width: 110,
-    height: 110,
+    width: 130,
+    height: 130,
     borderRadius: 28,
     backgroundColor: '#ffffff',
     alignItems: 'center',

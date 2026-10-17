@@ -28,7 +28,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Mic, MicOff, Loader, Volume2, X } from 'lucide-react-native';
 import { useVoiceNavigator, VoiceNavigatorOptions } from '../hooks/useVoiceNavigator';
 
-export const VOICE_NAV_STORAGE_KEY = 'teranga_voice_navigator_enabled';
+export const VOICE_NAV_STORAGE_KEY = 'seninnov_voice_navigator_enabled';
 
 /**
  * Hook to read and toggle the voice navigator activation status.

@@ -185,7 +185,7 @@ Lorsqu'un utilisateur citoyen exprime la volonté d'effectuer une démarche pré
 Par exemple : [Commencer la démarche](/demande/new?bureauId=1&preselectedServiceId=2&preselectedActivityId=5)
 Cela affichera un bouton interactif dans l'application permettant au citoyen de démarrer directement sa demande."""
 
-        system_prompt = f"""Tu es "Teranga Civil", l'assistant virtuel officiel de la plateforme d'état civil (Teranga Civil).
+        system_prompt = f"""Tu es "SenInnov", l'assistant virtuel officiel de la plateforme d'état civil (SenInnov).
 Ton rôle est d'accompagner tous les utilisateurs de la plateforme (citoyens, agents de l'administration, maires, gestionnaires).
 
 INFORMATIONS DE CONTEXTE SUR L'UTILISATEUR CONNECTÉ ET SON ÉCRAN :
@@ -195,7 +195,7 @@ RÈGLES DE COMPORTEMENT ET D'ASSISTANCE :
 1. Tu dois toujours être poli, courtois et très professionnel. Tes réponses doivent être claires et structurées (utilise des puces ou du gras si nécessaire).
 2. Pour les administrateurs et agents : Aide-les à naviguer, gérer le tableau de bord, analyser les statistiques, auditer les logs et configurer les services.
 3. Pour les citoyens et usagers : Réponds à TOUTES leurs questions concernant l'application, les démarches d'état civil, les documents, les tarifs, les délais, et les pièces à fournir. Utilise les informations de contexte et les services configurés pour les guider pas à pas dans leurs demandes. Explique-leur comment procéder pour soumettre une demande, comment utiliser les fonctionnalités de l'application, et fournis-leur les informations pertinentes selon leur profil connecté.
-4. Si l'utilisateur pose une question totalement HORS-SUJET par rapport à Teranga Civil, l'état civil ou les démarches administratives, refuse poliment d'y répondre.
+4. Si l'utilisateur pose une question totalement HORS-SUJET par rapport à SenInnov, l'état civil ou les démarches administratives, refuse poliment d'y répondre.
 
 CONTEXTE DES SERVICES ET DÉMARCHES CONFIGURÉS :
 {db_context}
@@ -242,7 +242,7 @@ def generate_ai_report_cohere(report_data: dict, current_user: dict) -> str:
         performance_str = "\n".join([f"- {p.get('nom')}: {p.get('count')} dossiers traités" for p in performance_list]) if performance_list else "Aucune donnée disponible"
         
         system_prompt = (
-            "Tu es un Data Analyst expert (Analyste de Données) chevronné pour la plateforme Teranga Civil. "
+            "Tu es un Data Analyst expert (Analyste de Données) chevronné pour la plateforme SenInnov. "
             "Ton objectif est de fournir des rapports de performance extrêmement précis, clairs et actionnables. "
             "Pour garantir une vitesse de réponse ultra-rapide (très faible latence), écris de manière concise, directe "
             "et télégraphique, sans aucune fioriture (pas d'introductions, pas de transitions, pas de politesses)."
@@ -306,5 +306,5 @@ SECTIONS REQUISES :
 def generate_ai_response(user_message: str) -> str:
     msg = user_message.lower()
     if "naissance" in msg:
-        return "Pour obtenir une **copie d'acte de naissance** sur Teranga Civil..."
+        return "Pour obtenir une **copie d'acte de naissance** sur SenInnov..."
     return "Je comprends votre demande. Je suis programmé pour vous renseigner sur les démarches administratives."

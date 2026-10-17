@@ -188,7 +188,7 @@ public class DemandeReminderService {
                     Map<String, Object> vars = new HashMap<>();
                     vars.put("title", titre);
                     vars.put("message", contenu);
-                    emailService.sendHtmlEmail(u.getEmail(), titre + " - Teranga Civil",
+                    emailService.sendHtmlEmail(u.getEmail(), titre + " - SenInnov",
                             "email-template", vars);
                 }
                 System.out.println("[Reminder] Notified: " + u.getNomComplet() + " → " + titre);

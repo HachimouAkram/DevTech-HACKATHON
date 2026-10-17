@@ -11,6 +11,7 @@ import com.openhtmltopdf.pdfboxout.PdfRendererBuilder;
 import com.terangacivil.backend.model.Demande;
 import com.terangacivil.backend.model.DocumentTemplate;
 import com.fasterxml.jackson.databind.JsonNode;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
@@ -38,6 +39,9 @@ import java.util.UUID;
 public class DocumentGeneratorService {
 
     private final String UPLOAD_DIR = "uploads/documents/";
+
+    @Autowired
+    private PdfGenerationService pdfGenerationService;
 
     public DocumentGeneratorService() {
         File directory = new File(UPLOAD_DIR);
@@ -218,12 +222,34 @@ public class DocumentGeneratorService {
         String fileName = "doc_" + demande.getReference() + ".pdf";
         Path outputPath = Paths.get(UPLOAD_DIR + fileName);
 
-        try (OutputStream os = new FileOutputStream(outputPath.toFile())) {
-            PdfRendererBuilder builder = new PdfRendererBuilder();
-            builder.useFastMode();
-            builder.withHtmlContent(htmlContent, "file:///");
-            builder.toStream(os);
-            builder.run();
+        boolean renderedSuccessfully = false;
+        try {
+            try (OutputStream os = new FileOutputStream(outputPath.toFile())) {
+                PdfRendererBuilder builder = new PdfRendererBuilder();
+                builder.useFastMode();
+                builder.withHtmlContent(htmlContent, "file:///");
+                builder.toStream(os);
+                builder.run();
+            }
+            if (Files.exists(outputPath) && Files.size(outputPath) > 0) {
+                renderedSuccessfully = true;
+            } else {
+                System.err.println("OpenHtmlToPdf produced 0-byte file, will fall back to OpenPDF.");
+            }
+        } catch (Exception e) {
+            System.err.println("OpenHtmlToPdf failed (" + e.getMessage() + "), falling back to OpenPDF...");
+        }
+
+        if (!renderedSuccessfully) {
+            try {
+                byte[] pdfBytes = pdfGenerationService.generateCertificatePdf(demande);
+                Files.write(outputPath, pdfBytes);
+                System.out.println("Fallback PDF generated successfully with OpenPDF (" + pdfBytes.length + " bytes)");
+            } catch (Exception ex) {
+                System.err.println("OpenPDF fallback also failed: " + ex.getMessage());
+                ex.printStackTrace();
+                throw new RuntimeException("Erreur lors de la génération du PDF: " + ex.getMessage(), ex);
+            }
         }
 
         return "/api/uploads/documents/" + fileName;

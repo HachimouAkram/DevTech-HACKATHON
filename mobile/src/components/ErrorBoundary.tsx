@@ -156,7 +156,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#2563eb', // Teranga Royal Blue
+    backgroundColor: '#2563eb', // SenInnov Royal Blue
     paddingVertical: 14,
     paddingHorizontal: 24,
     borderRadius: 16,

@@ -60,7 +60,7 @@ const INTENT_MAP: Array<{ patterns: string[]; action: NavAction }> = [
   },
   {
     patterns: ['assistant', 'aide', 'chatbot', 'question', 'ia', 'intelligence'],
-    action: { type: 'navigate', route: '/ai-assistant', label: 'Assistant IA', announce: "Je vous ouvre l'assistant Teranga Civil." },
+    action: { type: 'navigate', route: '/ai-assistant', label: 'Assistant IA', announce: "Je vous ouvre l'assistant SenInnov." },
   },
   {
     patterns: ['nouvelle demande', 'faire une demande', 'demarche', 'soumettre', 'demander un acte', 'nouvel acte'],

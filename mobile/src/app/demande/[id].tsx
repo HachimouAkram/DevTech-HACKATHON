@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator, Alert, DeviceEventEmitter, Image, Modal } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator, Alert, DeviceEventEmitter, Image, Modal, Linking } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { apiFetch } from '../../services/apiClient';
-import { ArrowLeft, Check, Download, AlertTriangle, ShieldCheck, Star, X, FileText, Eye, WifiOff, Clock, Trash2, Edit3 } from 'lucide-react-native';
+import { ArrowLeft, Check, Download, AlertTriangle, ShieldCheck, Star, X, FileText, Eye, WifiOff, Clock, Trash2, Edit3, ExternalLink, Share2 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
@@ -347,6 +347,57 @@ export default function RequestDetailsScreen() {
   const onRefresh = () => {
     setRefreshing(true);
     fetchDetails();
+  };
+
+    const [downloadingDoc, setDownloadingDoc] = useState(false);
+
+  const handleDownloadOrShareDoc = async (targetUrl?: string, customTitle?: string) => {
+    const url = targetUrl || viewerUrl;
+    if (!url) return;
+    try {
+      setDownloadingDoc(true);
+      const isLocal = url.startsWith('file://') || url.startsWith('content://');
+      let localFilePath = url;
+
+      if (!isLocal) {
+        const cleanName = (customTitle || viewerTitle || 'document')
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, '_');
+        const isDocx = url.toLowerCase().includes('.docx');
+        const isPng = url.toLowerCase().includes('.png');
+        const isJpg = url.toLowerCase().includes('.jpg') || url.toLowerCase().includes('.jpeg');
+        const ext = isDocx ? '.docx' : (isPng ? '.png' : (isJpg ? '.jpg' : '.pdf'));
+        
+        const tempPath = `${FileSystem.documentDirectory}${cleanName}_${Date.now()}${ext}`;
+        const downloadResult = await FileSystem.downloadAsync(url, tempPath);
+        
+        if (downloadResult.status !== 200 && downloadResult.status !== 302 && downloadResult.status !== 304) {
+          throw new Error(`Le serveur a retourné le code ${downloadResult.status}`);
+        }
+        localFilePath = downloadResult.uri;
+      }
+
+      const isDocx = localFilePath.toLowerCase().endsWith('.docx');
+      const isPdf = localFilePath.toLowerCase().endsWith('.pdf');
+      const mime = isDocx 
+        ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' 
+        : (isPdf ? 'application/pdf' : 'image/jpeg');
+
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(localFilePath, {
+          mimeType: mime,
+          dialogTitle: `Enregistrer ou Ouvrir ${customTitle || viewerTitle || 'le document'}`,
+          UTI: isDocx ? 'org.openxmlformats.wordprocessingml.document' : (isPdf ? 'com.adobe.pdf' : 'public.jpeg'),
+        });
+      } else {
+        Alert.alert('Fichier disponible', `Document enregistré : ${localFilePath}`);
+      }
+    } catch (err: any) {
+      console.warn('Erreur download/share doc:', err);
+      Alert.alert('Erreur', 'Impossible de télécharger le document : ' + (err.message || 'Erreur réseau'));
+    } finally {
+      setDownloadingDoc(false);
+    }
   };
 
   const handleDownloadPDF = async () => {
@@ -1565,63 +1616,190 @@ export default function RequestDetailsScreen() {
         <View style={styles.modalOverlay}>
           <View style={[styles.viewerContainer, { backgroundColor: theme.background }]}>
             <View style={[styles.viewerHeader, { borderBottomColor: isDark ? 'rgba(255,255,255,0.06)' : '#f1f5f9' }]}>
-              <Text style={[styles.viewerTitle, { color: theme.text }]}>{viewerTitle}</Text>
-              <TouchableOpacity onPress={() => setViewerVisible(false)} style={styles.closeViewerBtn}>
-                <X size={24} color={theme.text} />
-              </TouchableOpacity>
+              <Text style={[styles.viewerTitle, { color: theme.text, flex: 1, marginRight: 8 }]} numberOfLines={1}>
+                {viewerTitle || 'Aperçu du document'}
+              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <TouchableOpacity
+                  onPress={() => viewerUrl && handleDownloadOrShareDoc(viewerUrl, viewerTitle)}
+                  disabled={downloadingDoc}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 6,
+                    backgroundColor: '#2563eb',
+                    paddingHorizontal: 12,
+                    paddingVertical: 7,
+                    borderRadius: 8
+                  }}
+                >
+                  {downloadingDoc ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <>
+                      <Download size={14} color="#fff" />
+                      <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>Télécharger</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => {
+                    if (viewerUrl) {
+                      Linking.openURL(viewerUrl).catch(() => {});
+                    }
+                  }}
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 16,
+                    backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <ExternalLink size={15} color={theme.text} />
+                </TouchableOpacity>
+
+                <TouchableOpacity onPress={() => setViewerVisible(false)} style={styles.closeViewerBtn}>
+                  <X size={20} color={theme.text} />
+                </TouchableOpacity>
+              </View>
             </View>
             
             <View style={[styles.viewerContent, { flex: 1, backgroundColor: isDark ? '#0f172a' : '#f8fafc' }]}>
               {(() => {
                 if (!viewerUrl) return null;
                 
-                // Detect if this is a PDF source:
-                // - URL ends with .pdf
-                // - URL contains /pdf (API endpoint)
-                // - URL contains docs.google.com (Google Docs PDF viewer)
-                // - URL is a local file:// and the title says "Document officiel"
                 const isPdf = 
                   viewerUrl.toLowerCase().includes('.pdf') ||
                   viewerUrl.includes('/pdf') ||
-                  viewerUrl.includes('docs.google.com') ||
                   (viewerUrl.startsWith('file://') && viewerTitle === 'Document officiel');
                 
-                // Detect image
                 const isImage = !isPdf && (
                   viewerUrl.startsWith('content://') ||
                   viewerUrl.match(/\.(jpg|jpeg|png|gif|webp)(\?|$)/i) !== null ||
                   viewerUrl.includes('/upload')
                 );
                 
-                if (isPdf) {
-                  return (
-                    <WebView
-                      key={viewerUrl}
-                      source={{ uri: viewerUrl }}
-                      style={{ flex: 1, width: '100%', height: '100%', backgroundColor: 'transparent' }}
-                      originWhitelist={['*', 'file://*', 'data:*']}
-                      allowFileAccess={true}
-                      allowUniversalAccessFromFileURLs={true}
-                      javaScriptEnabled={true}
-                      domStorageEnabled={true}
-                      startInLoadingState={true}
-                      renderLoading={() => (
-                        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
-                          <ActivityIndicator size="large" color="#2563eb" />
-                          <Text style={{ color: isDark ? '#94a3b8' : '#64748b', marginTop: 12, fontSize: 14 }}>Chargement du document...</Text>
-                        </View>
-                      )}
-                    />
-                  );
-                }
-                
                 if (isImage) {
                   return (
-                    <Image
-                      source={{ uri: viewerUrl }}
-                      style={styles.viewerImage}
-                      resizeMode="contain"
-                    />
+                    <View style={{ flex: 1, width: '100%', justifyContent: 'center', alignItems: 'center' }}>
+                      <Image
+                        source={{ uri: viewerUrl }}
+                        style={styles.viewerImage}
+                        resizeMode="contain"
+                      />
+                    </View>
+                  );
+                }
+
+                if (isPdf) {
+                  return (
+                    <ScrollView contentContainerStyle={{ flexGrow: 1, width: '100%', padding: 20, justifyContent: 'center', alignItems: 'center' }}>
+                      <View style={{
+                        width: '100%',
+                        maxWidth: 420,
+                        backgroundColor: isDark ? '#1e293b' : '#ffffff',
+                        borderRadius: 20,
+                        padding: 24,
+                        alignItems: 'center',
+                        borderWidth: 1,
+                        borderColor: isDark ? 'rgba(255,255,255,0.08)' : '#e2e8f0',
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 4 },
+                        shadowOpacity: 0.1,
+                        shadowRadius: 10,
+                        elevation: 4
+                      }}>
+                        <View style={{
+                          width: 68,
+                          height: 68,
+                          borderRadius: 20,
+                          backgroundColor: 'rgba(239,68,68,0.12)',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          marginBottom: 16
+                        }}>
+                          <FileText size={34} color="#ef4444" />
+                        </View>
+
+                        <Text style={{ fontSize: 17, fontWeight: '800', color: theme.text, textAlign: 'center', marginBottom: 6 }}>
+                          {viewerTitle || 'Document PDF Officiel'}
+                        </Text>
+                        
+                        <View style={{ backgroundColor: 'rgba(16,185,129,0.1)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6, marginBottom: 14 }}>
+                          <Text style={{ fontSize: 11, fontWeight: '700', color: '#10b981', textTransform: 'uppercase' }}>
+                            Format PDF Officiel • Certifié
+                          </Text>
+                        </View>
+
+                        <Text style={{ fontSize: 13, color: theme.textSecondary, textAlign: 'center', lineHeight: 19, marginBottom: 20 }}>
+                          Ce document PDF est prêt. Vous pouvez le consulter en plein écran ou l'enregistrer sur votre téléphone.
+                        </Text>
+
+                        <TouchableOpacity
+                          activeOpacity={0.85}
+                          disabled={downloadingDoc}
+                          onPress={() => viewerUrl && handleDownloadOrShareDoc(viewerUrl, viewerTitle)}
+                          style={{
+                            width: '100%',
+                            backgroundColor: '#2563eb',
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            paddingVertical: 13,
+                            borderRadius: 12,
+                            gap: 8,
+                            marginBottom: 10
+                          }}
+                        >
+                          {downloadingDoc ? (
+                            <ActivityIndicator color="#fff" size="small" />
+                          ) : (
+                            <>
+                              <Eye size={17} color="#fff" />
+                              <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>
+                                Ouvrir & Visualiser le PDF
+                              </Text>
+                            </>
+                          )}
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          activeOpacity={0.85}
+                          disabled={downloadingDoc}
+                          onPress={() => viewerUrl && handleDownloadOrShareDoc(viewerUrl, viewerTitle)}
+                          style={{
+                            width: '100%',
+                            backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#f1f5f9',
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            paddingVertical: 12,
+                            borderRadius: 12,
+                            gap: 8
+                          }}
+                        >
+                          <Download size={16} color={theme.text} />
+                          <Text style={{ color: theme.text, fontSize: 13, fontWeight: '600' }}>
+                            Télécharger et Enregistrer
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+
+                      {Platform.OS === 'ios' && (
+                        <View style={{ width: '100%', height: 180, marginTop: 16, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.08)' : '#e2e8f0' }}>
+                          <WebView
+                            source={{ uri: viewerUrl }}
+                            style={{ flex: 1, backgroundColor: 'transparent' }}
+                            originWhitelist={['*', 'file://*', 'data:*']}
+                            allowFileAccess={true}
+                            scalesPageToFit={true}
+                          />
+                        </View>
+                      )}
+                    </ScrollView>
                   );
                 }
                 
@@ -1629,15 +1807,12 @@ export default function RequestDetailsScreen() {
                 return (
                   <View style={styles.fallbackViewer}>
                     <AlertTriangle size={48} color="#eab308" />
-                    <Text style={[styles.fallbackText, { color: theme.textSecondary }]}>Aperçu non disponible pour ce type de fichier.</Text>
+                    <Text style={[styles.fallbackText, { color: theme.textSecondary }]}>Aperçu non disponible directement.</Text>
                     <TouchableOpacity
                       style={styles.openExternalBtn}
-                      onPress={() => {
-                        const { Linking } = require('react-native');
-                        Linking.openURL(viewerUrl!);
-                      }}
+                      onPress={() => viewerUrl && handleDownloadOrShareDoc(viewerUrl, viewerTitle)}
                     >
-                      <Text style={styles.openExternalBtnText}>Ouvrir dans le navigateur</Text>
+                      <Text style={styles.openExternalBtnText}>Télécharger ou Ouvrir le fichier</Text>
                     </TouchableOpacity>
                   </View>
                 );

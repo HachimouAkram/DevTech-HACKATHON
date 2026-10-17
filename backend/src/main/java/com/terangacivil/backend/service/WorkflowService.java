@@ -87,7 +87,7 @@ public class WorkflowService {
                     java.util.Map<String, Object> vars = new java.util.HashMap<>();
                     vars.put("title", "Nouvelle Demande Enregistrée");
                     vars.put("message", "Votre demande pour " + demande.getActivite().getNom() + " (Réf: " + demande.getReference() + ") a bien été enregistrée et le traitement a démarré à l'étape : " + firstStep.getNom() + ".");
-                    emailService.sendHtmlEmail(demande.getCitoyen().getEmail(), "Nouvelle Demande - Teranga Civil", "email-template", vars);
+                    emailService.sendHtmlEmail(demande.getCitoyen().getEmail(), "Nouvelle Demande - SenInnov", "email-template", vars);
                 }
 
                 if (demande.getCentre() != null) {
@@ -99,7 +99,7 @@ public class WorkflowService {
                             java.util.Map<String, Object> vars = new java.util.HashMap<>();
                             vars.put("title", "Nouveau dossier à traiter");
                             vars.put("message", "Une nouvelle demande de type " + demande.getActivite().getNom() + " (Réf: " + demande.getReference() + ") vient d'arriver dans votre centre pour traitement.");
-                            emailService.sendHtmlEmail(agent.getEmail(), "Nouveau Dossier - Teranga Civil", "email-template", vars);
+                            emailService.sendHtmlEmail(agent.getEmail(), "Nouveau Dossier - SenInnov", "email-template", vars);
                         }
                     }
                 }
@@ -152,7 +152,7 @@ public class WorkflowService {
                 java.util.Map<String, Object> vars = new java.util.HashMap<>();
                 vars.put("title", "Demande Validée");
                 vars.put("message", "Félicitations, votre demande (Réf: " + demande.getReference() + ") a été entièrement validée.");
-                emailService.sendHtmlEmail(demande.getCitoyen().getEmail(), "Demande Validée - Teranga Civil", "email-template", vars);
+                emailService.sendHtmlEmail(demande.getCitoyen().getEmail(), "Demande Validée - SenInnov", "email-template", vars);
             }
         }
 
@@ -193,7 +193,7 @@ public class WorkflowService {
                 java.util.Map<String, Object> vars = new java.util.HashMap<>();
                 vars.put("title", "Demande Rejetée");
                 vars.put("message", "Votre demande (Réf: " + demande.getReference() + ") a malheureusement été rejetée. Motif : " + commentaire);
-                emailService.sendHtmlEmail(demande.getCitoyen().getEmail(), "Demande Rejetée - Teranga Civil", "email-template", vars);
+                emailService.sendHtmlEmail(demande.getCitoyen().getEmail(), "Demande Rejetée - SenInnov", "email-template", vars);
             }
         }
 

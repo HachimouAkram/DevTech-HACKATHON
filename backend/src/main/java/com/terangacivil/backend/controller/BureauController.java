@@ -45,7 +45,19 @@ public class BureauController {
 
     @GetMapping
     public ResponseEntity<ApiResponse<Map<String, Object>>> getAllBureaux() {
-        List<Bureau> bureaux = bureauRepository.findByActifTrueOrderByOrdreAsc();
+        List<Bureau> bureaux = bureauRepository.findByActifTrueOrderByOrdreAsc().stream()
+                .filter(b -> {
+                    if (b.getConfig() != null) {
+                        if (b.getConfig().has("type_acces") && "interne".equalsIgnoreCase(b.getConfig().get("type_acces").asText())) {
+                            return false;
+                        }
+                        if (b.getConfig().has("is_externe") && !b.getConfig().get("is_externe").asBoolean()) {
+                            return false;
+                        }
+                    }
+                    return true;
+                })
+                .collect(Collectors.toList());
         List<com.terangacivil.backend.model.Service> activeServices = serviceRepository.findByActifTrue();
         
         Map<Integer, Long> serviceCounts = activeServices.stream()
@@ -108,6 +120,7 @@ public class BureauController {
 
         if (body.containsKey("nom")) bureau.setNom((String) body.get("nom"));
         if (body.containsKey("description")) bureau.setDescription((String) body.get("description"));
+        if (body.containsKey("code")) bureau.setCode((String) body.get("code"));
         if (body.containsKey("icone")) bureau.setIcone((String) body.get("icone"));
         if (body.containsKey("couleur")) bureau.setCouleur((String) body.get("couleur"));
         if (body.containsKey("actif")) bureau.setActif((Boolean) body.get("actif"));

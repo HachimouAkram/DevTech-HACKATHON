@@ -214,7 +214,7 @@ export default function AgentTabLayout() {
       )}
       <Tabs
         screenOptions={{
-          tabBarActiveTintColor: '#2563eb', // Teranga Green
+          tabBarActiveTintColor: '#2563eb', // SenInnov Green
           tabBarInactiveTintColor: theme.textSecondary,
           tabBarButton: (props) => <TabBarButton {...props} />,
           tabBarStyle: {

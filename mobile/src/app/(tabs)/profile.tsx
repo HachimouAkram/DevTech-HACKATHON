@@ -1,3 +1,5 @@
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 import * as SecureStore from 'expo-secure-store';
 import React, { useState, useEffect, useRef } from 'react';
 import {
@@ -138,7 +140,7 @@ const FAQ_ITEMS = [
   },
   {
     question: "Que faire si ma commune n'est pas dans la liste ?",
-    answer: "Si votre commune ne figure pas dans les choix possibles, cela signifie qu'elle n'est pas encore numérisée sur Teranga Civil. Vous devrez effectuer vos démarches physiquement dans ce centre."
+    answer: "Si votre commune ne figure pas dans les choix possibles, cela signifie qu'elle n'est pas encore numérisée sur SenInnov. Vous devrez effectuer vos démarches physiquement dans ce centre."
   },
   {
     question: "Quels documents justificatifs dois-je fournir en général ?",
@@ -736,14 +738,14 @@ export default function ProfileScreen() {
   const handleShare = async () => {
     try {
       await Share.share({
-        message: 'Téléchargez Teranga Civil — gérez vos actes d\'état civil facilement depuis votre téléphone. Application officielle Teranga Civil.',
-        title: 'Teranga Civil',
+        message: 'Téléchargez SenInnov — gérez vos actes d\'état civil facilement depuis votre téléphone. Application officielle SenInnov.',
+        title: 'SenInnov',
       });
     } catch { /* ignore */ }
   };
 
   const handleFeedback = () => {
-    Linking.openURL('mailto:support@teranga-civil.com?subject=Feedback Teranga Civil');
+    Linking.openURL('mailto:support@seninnov.sn?subject=Feedback SenInnov');
   };
 
   const handleSendFeedbackSubmit = async () => {
@@ -937,7 +939,7 @@ export default function ProfileScreen() {
         <Text style={styles.logoutBtnText}>Se déconnecter</Text>
       </TouchableOpacity>
 
-      <Text style={styles.versionText}>Teranga Civil v1.0.0 · Teranga Civil © 2026</Text>
+      <Text style={styles.versionText}>SenInnov v1.0.0 · SenInnov © 2026</Text>
     </ScrollView>
   );
 
@@ -1182,14 +1184,29 @@ export default function ProfileScreen() {
                 const token = await SecureStore.getItemAsync('auth_token');
                 const pdfUrl = `${baseUrl}/demandes/${dem.id}/pdf?token=${encodeURIComponent(token || '')}`;
                 
+                const filename = `acte_${dem.reference || dem.id}.pdf`;
+                const localUri = `${FileSystem.documentDirectory}${filename}`;
+                
+                const res = await FileSystem.downloadAsync(pdfUrl, localUri);
+                if (res.status === 200) {
+                  if (await Sharing.isAvailableAsync()) {
+                    await Sharing.shareAsync(res.uri, {
+                      mimeType: 'application/pdf',
+                      dialogTitle: `Télécharger l'acte ${dem.reference || ''}`,
+                      UTI: 'com.adobe.pdf'
+                    });
+                    return;
+                  }
+                }
                 const supported = await Linking.canOpenURL(pdfUrl);
                 if (supported) {
                   await Linking.openURL(pdfUrl);
                 } else {
-                  Alert.alert("Erreur", "Impossible d'ouvrir le lien de téléchargement.");
+                  Alert.alert("Téléchargement", "Le fichier a été téléchargé avec succès.");
                 }
               } catch (e) {
                 console.warn(e);
+                Alert.alert("Erreur", "Impossible d'ouvrir le lien de téléchargement.");
               }
             };
 
@@ -1310,8 +1327,8 @@ export default function ProfileScreen() {
           </View>
           <View style={{ flex: 1 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Text style={[styles.appName, { color: theme.text, fontWeight: '800' }]}>Teranga</Text>
-              <Text style={[styles.appName, { color: '#2563eb', fontWeight: '800' }]}>Civil</Text>
+              <Text style={[styles.appName, { color: theme.text, fontWeight: '800' }]}>SenInnov</Text>
+              <Text style={[styles.appName, { color: '#2563eb', fontWeight: '800' }]}>Innov</Text>
             </View>
             <Text style={styles.appTagline}>Actes civils simplifiés · Sénégal</Text>
           </View>
@@ -1333,11 +1350,11 @@ export default function ProfileScreen() {
           <ChevronRight size={16} color="#94a3b8" />
         </TouchableOpacity>
         <View style={[styles.separator, { backgroundColor: activeTheme === 'dark' ? 'rgba(255,255,255,0.05)' : '#f1f5f9' }]} />
-        <TouchableOpacity style={styles.helpRow} onPress={() => Linking.openURL('mailto:support@teranga-civil.com')} activeOpacity={0.7}>
+        <TouchableOpacity style={styles.helpRow} onPress={() => Linking.openURL('mailto:support@seninnov.sn')} activeOpacity={0.7}>
           <View style={[styles.menuIcon, { backgroundColor: '#6366f1' }]}><Mail size={16} color="#fff" /></View>
           <View style={{ flex: 1 }}>
             <Text style={[styles.menuLabel, { color: theme.text }]}>Envoyer un email</Text>
-            <Text style={styles.menuDesc}>support@teranga-civil.com</Text>
+            <Text style={styles.menuDesc}>support@seninnov.sn</Text>
           </View>
           <ChevronRight size={16} color="#94a3b8" />
         </TouchableOpacity>
@@ -1367,7 +1384,7 @@ export default function ProfileScreen() {
           <Info size={16} color="#0ea5e9" />
           <View style={{ flex: 1 }}>
             <Text style={[styles.menuLabel, { color: theme.text }]}>Version de l'application</Text>
-            <Text style={styles.menuDesc}>Teranga Civil 1.0.0 · Build 2026</Text>
+            <Text style={styles.menuDesc}>SenInnov 1.0.0 · Build 2026</Text>
           </View>
         </View>
       </View>
@@ -1451,7 +1468,7 @@ export default function ProfileScreen() {
           <View style={[styles.menuIcon, { backgroundColor: '#2563eb' }]}><Share2 size={16} color="#fff" /></View>
           <View style={{ flex: 1 }}>
             <Text style={[styles.menuLabel, { color: theme.text }]}>Partager l'application</Text>
-            <Text style={styles.menuDesc}>Recommandez Teranga Civil à vos proches</Text>
+            <Text style={styles.menuDesc}>Recommandez SenInnov à vos proches</Text>
           </View>
           <ChevronRight size={16} color="#94a3b8" />
         </TouchableOpacity>

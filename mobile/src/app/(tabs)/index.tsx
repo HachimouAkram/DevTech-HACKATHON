@@ -175,11 +175,12 @@ export default function HomeScreen() {
 
   // ── Helper: build state from data objects ──────────────────────────────────
   const applyData = useCallback(async (bureauxData: any[], demandesData: any[], notifsData: any[]) => {
-    // Online: filter out bureaux with confirmed 0 services.
-    // Offline (from cache): keep all bureaux even if services_count is missing,
-    // so the user can still navigate and load services from the SQLite cache.
+    // Uniquement les bureaux actifs et externes (visibles aux citoyens)
+    // N'exclut pas les nouveaux bureaux créés pour permettre aux citoyens de voir leur disponibilité
     const activeBureaux = (bureauxData || []).filter(b => 
-      b.services_count === undefined || b.services_count === null || b.services_count > 0
+      b.actif !== false &&
+      b.config?.type_acces !== 'interne' &&
+      b.config?.is_externe !== false
     );
     setBureaux(activeBureaux);
 

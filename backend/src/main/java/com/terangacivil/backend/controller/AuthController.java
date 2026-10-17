@@ -134,8 +134,10 @@ public class AuthController {
             throw new IllegalArgumentException("Ce numéro de téléphone est déjà utilisé.");
         }
 
-        if (userRepository.findByEmail(registerRequest.getEmail()).isPresent()) {
-            throw new IllegalArgumentException("Cet e-mail est déjà utilisé.");
+        if (registerRequest.getEmail() != null && !registerRequest.getEmail().isBlank()) {
+            if (userRepository.findByEmail(registerRequest.getEmail()).isPresent()) {
+                throw new IllegalArgumentException("Cet e-mail est déjà utilisé.");
+            }
         }
 
         User user = new User();
@@ -173,7 +175,7 @@ public class AuthController {
         
         if (email != null && !email.isBlank()) {
             Map<String, Object> emailVars = new HashMap<>();
-            emailVars.put("title", "Code de vérification Teranga Civil");
+            emailVars.put("title", "Code de vérification SenInnov");
             emailVars.put("message", "Votre code de vérification est : <b>" + code + "</b><br>Ce code est valable pour la création de votre compte.");
             new Thread(() -> {
                 try {

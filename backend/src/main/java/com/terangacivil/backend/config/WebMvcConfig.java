@@ -9,15 +9,16 @@ import java.io.File;
 public class WebMvcConfig implements WebMvcConfigurer {
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        String uploadPath = new File("uploads").getAbsolutePath();
-        
-        // Ensure uploads directory exists
-        File uploadDir = new File(uploadPath);
-        if (!uploadDir.exists()) {
-            uploadDir.mkdirs();
+        File dir1 = new File("uploads").getAbsoluteFile();
+        if (!dir1.exists()) {
+            dir1.mkdirs();
+        }
+        File dir2 = new File("backend/uploads").getAbsoluteFile();
+        if (!dir2.exists()) {
+            dir2.mkdirs();
         }
 
         registry.addResourceHandler("/api/uploads/**")
-                .addResourceLocations("file:" + uploadPath + "/");
+                .addResourceLocations("file:" + dir1.getAbsolutePath() + "/", "file:" + dir2.getAbsolutePath() + "/");
     }
 }

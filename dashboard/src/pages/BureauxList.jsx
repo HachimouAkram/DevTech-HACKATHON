@@ -60,6 +60,7 @@ function BureauModal({ bureau, onClose, onSaved, token }) {
     couleur: bureau?.couleur || '#10b981',
     actif: bureau?.actif !== false,
     ordre: bureau?.ordre || 0,
+    type_acces: bureau?.config?.type_acces || (bureau?.config?.is_externe === false ? 'interne' : 'externe'),
   });
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
@@ -73,7 +74,21 @@ function BureauModal({ bureau, onClose, onSaved, token }) {
     try {
       const endpoint = isNew ? '/bureaux' : `/bureaux/${bureau.id}`;
       const method = isNew ? 'POST' : 'PUT';
-      const res = await apiFetch(endpoint, { method, bodyData: form });
+      const payload = {
+        nom: form.nom,
+        description: form.description,
+        code: form.code,
+        icone: form.icone,
+        couleur: form.couleur,
+        actif: form.actif,
+        ordre: form.ordre,
+        config: {
+          ...(bureau?.config || {}),
+          type_acces: form.type_acces,
+          is_externe: form.type_acces === 'externe'
+        }
+      };
+      const res = await apiFetch(endpoint, { method, bodyData: payload });
       if (res.status === 'success') {
         onSaved(res.data.bureau);
       }
@@ -179,9 +194,91 @@ function BureauModal({ bureau, onClose, onSaved, token }) {
             </div>
           </div>
 
+          {/* TYPE D'ACCÈS DU BUREAU : EXTERNE (CITOYEN) OU INTERNE (ADMIN) */}
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#1e293b', marginBottom: 8 }}>
+              Visibilité et type d'accès du bureau *
+            </label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div
+                onClick={() => setForm(p => ({ ...p, type_acces: 'externe' }))}
+                style={{
+                  padding: '12px 14px',
+                  borderRadius: '12px',
+                  border: `2px solid ${form.type_acces === 'externe' ? '#2563eb' : '#e2e8f0'}`,
+                  backgroundColor: form.type_acces === 'externe' ? '#eff6ff' : '#f8fafc',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '10px',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <div style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '8px',
+                  backgroundColor: form.type_acces === 'externe' ? '#2563eb' : '#e2e8f0',
+                  color: form.type_acces === 'externe' ? '#fff' : '#64748b',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0
+                }}>
+                  <Users size={18} />
+                </div>
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: '0.88rem', color: form.type_acces === 'externe' ? '#1d4ed8' : '#334155' }}>
+                    Bureau Externe
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px', lineHeight: 1.3 }}>
+                    Visible par les citoyens sur le portail Web et l'application mobile.
+                  </div>
+                </div>
+              </div>
+
+              <div
+                onClick={() => setForm(p => ({ ...p, type_acces: 'interne' }))}
+                style={{
+                  padding: '12px 14px',
+                  borderRadius: '12px',
+                  border: `2px solid ${form.type_acces === 'interne' ? '#7c3aed' : '#e2e8f0'}`,
+                  backgroundColor: form.type_acces === 'interne' ? '#f5f3ff' : '#f8fafc',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '10px',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <div style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '8px',
+                  backgroundColor: form.type_acces === 'interne' ? '#7c3aed' : '#e2e8f0',
+                  color: form.type_acces === 'interne' ? '#fff' : '#64748b',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0
+                }}>
+                  <Shield size={18} />
+                </div>
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: '0.88rem', color: form.type_acces === 'interne' ? '#6d28d9' : '#334155' }}>
+                    Bureau Interne
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px', lineHeight: 1.3 }}>
+                    Usage administratif interne uniquement. Invisible pour les citoyens.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
             <input type="checkbox" checked={form.actif} onChange={e => setForm(p => ({ ...p, actif: e.target.checked }))} />
-            Bureau actif (visible dans l'application)
+            Bureau actif (activé dans le système)
           </label>
         </div>
         <div className="modal-footer">
@@ -299,7 +396,38 @@ export default function BureauxList({ token, currentUser }) {
                 </div>
                 <div>
                   <div className="bureau-card-code">{b.code}</div>
-                  {!b.actif && <span className="badge-inactive">Inactif</span>}
+                  <div style={{ display: 'flex', gap: '4px', marginTop: '4px', flexWrap: 'wrap' }}>
+                    {b.config?.type_acces === 'interne' || b.config?.is_externe === false ? (
+                      <span style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '3px',
+                        backgroundColor: 'rgba(124, 58, 237, 0.85)',
+                        color: '#fff',
+                        borderRadius: '6px',
+                        padding: '2px 7px',
+                        fontSize: '10px',
+                        fontWeight: '700'
+                      }}>
+                        <Shield size={10} /> Interne
+                      </span>
+                    ) : (
+                      <span style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '3px',
+                        backgroundColor: 'rgba(37, 99, 235, 0.85)',
+                        color: '#fff',
+                        borderRadius: '6px',
+                        padding: '2px 7px',
+                        fontSize: '10px',
+                        fontWeight: '700'
+                      }}>
+                        <Users size={10} /> Externe (Citoyens)
+                      </span>
+                    )}
+                    {!b.actif && <span className="badge-inactive">Inactif</span>}
+                  </div>
                 </div>
               </div>
               <div className="bureau-card-body">

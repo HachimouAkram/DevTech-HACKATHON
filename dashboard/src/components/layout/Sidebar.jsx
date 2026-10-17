@@ -67,13 +67,13 @@ export const Sidebar = ({ user, sidebarCollapsed, sidebarOpen, setSidebarOpen, o
       <aside className={`sidebar ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${sidebarOpen ? 'sidebar-open' : ''}`}>
         <div className="sidebar-logo">
           <div className="sidebar-logo-icon-box">
-            <img src="/logo.png" alt="TerangaCivil" className="logo-icon-img" />
+            <img src="/logo.png" alt="SenInnov" className="logo-icon-img" />
           </div>
           {!sidebarCollapsed && (
             <div className="logo-brand-wrap">
               <span className="logo-text-styled">
-                <span className="logo-text-primary">Teranga</span>
-                <span className="logo-text-accent">Civil</span>
+                <span className="logo-text-primary">Sen</span>
+                <span className="logo-text-accent">Innov</span>
               </span>
               <span className="logo-text-badge">SÉNÉGAL</span>
             </div>

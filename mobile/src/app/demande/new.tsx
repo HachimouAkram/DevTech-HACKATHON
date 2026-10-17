@@ -14,7 +14,8 @@ import {
   ArrowLeft, Check, Camera, CreditCard, ShieldCheck,
   UploadCloud, Smartphone, X, ChevronRight, Clock,
   Briefcase, Search, Baby, Heart, UserMinus, Building2,
-  FileText, HelpCircle, FolderOpen, MapPin, Navigation, Star
+  FileText, HelpCircle, FolderOpen, MapPin, Navigation, Star,
+  User as UserIcon, Phone as PhoneIcon, Mail as MailIcon
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
@@ -354,19 +355,35 @@ export default function NewRequestScreen() {
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [submittingRequest, setSubmittingRequest] = useState(false);
 
-  const [showAfrikpayModal, setShowAfrikpayModal] = useState(false);
-  const [afrikpayUrl, setAfrikpayUrl] = useState('');
-  const [afrikpaySessionId, setAfrikpaySessionId] = useState('');
-  const [afrikpayPollingId, setAfrikpayPollingId] = useState<any>(null);
-  const [afrikpayProgress, setAfrikpayProgress] = useState(0);
+  // PayTech Payment Gateway State
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'Wave' | 'Orange Money' | 'Free Money' | 'Carte Bancaire' | 'ALL'>('ALL');
+  const [showPaytechModal, setShowPaytechModal] = useState(false);
+  const [paytechUrl, setPaytechUrl] = useState('');
+  const [paytechToken, setPaytechToken] = useState('');
+  const [paytechPollingId, setPaytechPollingId] = useState<any>(null);
+  const [paytechProgress, setPaytechProgress] = useState(0);
+
+  // Pre-filled payer information (editable by user)
+  const [payerFullName, setPayerFullName] = useState(user?.nom_complet || '');
+  const [payerPhone, setPayerPhone] = useState(user?.telephone || '');
+  const [payerEmail, setPayerEmail] = useState(user?.email || '');
+
+  // Keep synced if user state loads or updates
+  useEffect(() => {
+    if (user) {
+      if (!payerFullName && user.nom_complet) setPayerFullName(user.nom_complet);
+      if (!payerPhone && user.telephone) setPayerPhone(user.telephone);
+      if (!payerEmail && user.email) setPayerEmail(user.email);
+    }
+  }, [user]);
 
   useEffect(() => {
     return () => {
-      if (afrikpayPollingId) {
-        clearInterval(afrikpayPollingId);
+      if (paytechPollingId) {
+        clearInterval(paytechPollingId);
       }
     };
-  }, [afrikpayPollingId]);
+  }, [paytechPollingId]);
 
   const [findingLocation, setFindingLocation] = useState<boolean>(false);
 
@@ -1339,20 +1356,36 @@ export default function NewRequestScreen() {
       }
 
       if (asset) {
-        const uploadRes = await apiUpload('/upload', { uri: asset.uri, type: asset.mimeType || 'application/octet-stream', name: asset.name || `${docType}_${Date.now()}.jpg` });
-        if (uploadRes.status === 'success') {
-          const url = uploadRes.data?.url;
+        const docName = asset.name || asset.fileName || `${docType}_${Date.now()}.${asset.uri?.endsWith('.png') ? 'png' : asset.uri?.endsWith('.pdf') ? 'pdf' : 'jpg'}`;
+        const docExt = docName.split('.').pop()?.toLowerCase();
+        let docMime = asset.mimeType;
+        if (!docMime || docMime === 'application/octet-stream') {
+          if (docExt === 'png') docMime = 'image/png';
+          else if (docExt === 'pdf') docMime = 'application/pdf';
+          else docMime = 'image/jpeg';
+        }
+
+        const uploadRes = await apiUpload('/upload', { 
+          uri: asset.uri, 
+          type: docMime, 
+          name: docName 
+        });
+
+        if (uploadRes.status === 'success' && uploadRes.data?.url) {
+          const url = uploadRes.data.url;
           if (champ) {
             setFormValues(prev => ({ ...prev, [champ.nom_champ]: url }));
           } else {
             if (docType === 'cni') { setCniBackendUrl(url); setUploadedCni(true); }
             else { setJustifBackendUrl(url); setUploadedJustif(true); }
           }
-          Alert.alert('Succès', 'Document uploadé avec succès !');
+          Alert.alert('Succès', 'Document téléversé avec succès !');
+        } else {
+          throw new Error(uploadRes.message || 'Échec du téléversement du fichier.');
         }
       }
     } catch (err: any) {
-      Alert.alert('Erreur', 'Impossible d\'envoyer le fichier.');
+      Alert.alert('Erreur de téléversement', err.message || 'Impossible d\'envoyer le fichier sur le serveur.');
     } finally {
       if (champ) setFieldUploading(prev => ({ ...prev, [champ.nom_champ]: false }));
       else if (docType === 'cni') setCniUploading(false);
@@ -1594,17 +1627,17 @@ export default function NewRequestScreen() {
   };
 
 
-  const handleInitiateAfrikpayPayment = async () => {
+  const handleInitiatePaytechPayment = async () => {
     if (paymentLoading || submittingRequest) return;
     
     setPaymentLoading(true);
     
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    const timeoutId = setTimeout(() => controller.abort(), 12000);
     
     try {
       const hostIp = getHostIp();
-      const response = await fetch(`http://${hostIp}:8000/api/afrikpay/create-session`, {
+      const response = await fetch(`http://${hostIp}:8000/api/paytech/request-payment`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1612,8 +1645,13 @@ export default function NewRequestScreen() {
         },
         body: JSON.stringify({
           amount: selectedActivity?.prix || 0,
-          description: `Paiement Demande de ${selectedActivity?.nom} - Teranga Civil`,
-          activity_name: selectedActivity?.nom || 'Acte d\'état civil'
+          description: `Demande de ${selectedActivity?.nom} - SenInnov`,
+          activity_name: selectedActivity?.nom || 'Acte d\'état civil',
+          // target_payment is left undefined so PayTech provides its complete multi-operator portal
+          target_payment: undefined,
+          phone: payerPhone.trim() || user?.telephone,
+          full_name: payerFullName.trim() || user?.nom_complet,
+          email: payerEmail.trim() || user?.email || undefined
         }),
         signal: controller.signal as any
       });
@@ -1622,13 +1660,13 @@ export default function NewRequestScreen() {
       const data = await response.json();
       
       if (!response.ok || data.status !== 'success') {
-        throw new Error(data.detail || 'Impossible d\'initier la transaction de test avec AfrikPay.');
+        throw new Error(data.detail || 'Impossible d\'initier la transaction avec PayTech.');
       }
       
       // Succeeded in creating session
-      setAfrikpaySessionId(data.sessionId);
-      setAfrikpayUrl(data.url);
-      setShowAfrikpayModal(true);
+      setPaytechToken(data.token);
+      setPaytechUrl(data.redirect_url || data.url);
+      setShowPaytechModal(true);
       setPaymentLoading(false);
       
       // Start polling confirmation status
@@ -1637,7 +1675,7 @@ export default function NewRequestScreen() {
         const pollTimeoutId = setTimeout(() => pollController.abort(), 4000);
         
         try {
-          const checkRes = await fetch(`http://${hostIp}:8000/api/afrikpay/confirm/${data.sessionId}`, {
+          const checkRes = await fetch(`http://${hostIp}:8000/api/paytech/status/${data.token}`, {
             headers: { 'Authorization': `Bearer ${token}` },
             signal: pollController.signal as any
           });
@@ -1648,39 +1686,40 @@ export default function NewRequestScreen() {
             if (checkData.payment_status === 'paid') {
               // Success!
               clearInterval(intervalId);
-              setAfrikpayPollingId(null);
-              setShowAfrikpayModal(false);
+              setPaytechPollingId(null);
+              setShowPaytechModal(false);
               
               // Trigger submission
-              submitPaidRequest();
+              submitPaidRequest('PayTech');
             } else if (checkData.payment_status === 'failed') {
               // Failed
               clearInterval(intervalId);
-              setAfrikpayPollingId(null);
-              setShowAfrikpayModal(false);
-              Alert.alert('Échec du paiement', 'La transaction AfrikPay a échoué.');
+              setPaytechPollingId(null);
+              setShowPaytechModal(false);
+              Alert.alert('Échec du paiement', 'La transaction PayTech a échoué ou a été refusée.');
             }
           }
         } catch (pollErr) {
           clearTimeout(pollTimeoutId);
-          console.warn('Error polling status:', pollErr);
+          console.warn('Error polling PayTech status:', pollErr);
         }
-      }, 3000);
+      }, 2500);
       
-      setAfrikpayPollingId(intervalId);
+      setPaytechPollingId(intervalId);
       
     } catch (err: any) {
       clearTimeout(timeoutId);
       setPaymentLoading(false);
-      Alert.alert('Erreur', err.message || 'Erreur lors du contact avec la passerelle AfrikPay.');
+      Alert.alert('Erreur', err.message || 'Erreur lors du contact avec la passerelle PayTech.');
     }
   };
 
-  const submitPaidRequest = async () => {
+  const submitPaidRequest = async (chosenMethod?: string) => {
     if (submittingRequest) return;
     setSubmittingRequest(true);
     try {
       const actualRetraitAutreCentre = !!((selectedActivity?.presence_physique_requise || !selectedActivity?.has_template) && retraitAutreCentre);
+      const methodLabel = (chosenMethod || selectedPaymentMethod || 'paytech').toLowerCase().replace(/\s+/g, '_');
       const res = await apiFetch('/demandes', {
         method: 'POST',
         bodyData: {
@@ -1690,7 +1729,7 @@ export default function NewRequestScreen() {
           motif: motif,
           donnees: buildDonnees(),
           montant_paye: selectedActivity?.prix || 0,
-          mode_paiement: 'afrikpay',
+          mode_paiement: methodLabel,
           documents_url: buildDocumentsUrl(),
           rendez_vous: null,
           _offline_metadata: {
@@ -2744,6 +2783,210 @@ export default function NewRequestScreen() {
                   </>
                 )}
 
+                {/* 5. Choix du Mode de Paiement */}
+                {!editId && selectedActivity?.prix > 0 && (
+                  <>
+                    <View style={[styles.recapDivider, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#f1f5f9' }]} />
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                      <Text style={[styles.recapSectionTitle, { color: theme.text, marginBottom: 0 }]}>
+                        Choisir un mode de paiement
+                      </Text>
+                      <View style={{ backgroundColor: 'rgba(16,185,129,0.1)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 }}>
+                        <Text style={{ fontSize: 10, fontWeight: '800', color: '#10b981', textTransform: 'uppercase' }}>Sécurisé</Text>
+                      </View>
+                    </View>
+                    
+                    {/* Unique Elegant Payment Gateway Option */}
+                    <TouchableOpacity
+                      activeOpacity={0.9}
+                      style={{
+                        padding: 15,
+                        borderRadius: 16,
+                        borderWidth: 1.5,
+                        borderColor: '#0070b2',
+                        backgroundColor: isDark ? 'rgba(0,112,178,0.08)' : '#f0f9ff',
+                        marginBottom: 16
+                      }}
+                    >
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+                          <View style={{
+                            width: 44,
+                            height: 44,
+                            borderRadius: 12,
+                            backgroundColor: '#0070b2',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            shadowColor: '#0070b2',
+                            shadowOffset: { width: 0, height: 2 },
+                            shadowOpacity: 0.25,
+                            shadowRadius: 4,
+                            elevation: 3
+                          }}>
+                            <CreditCard size={22} color="#ffffff" />
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={{ fontSize: 15, fontWeight: '800', color: theme.text }}>
+                              Paiement en ligne sécurisé
+                            </Text>
+                            <Text style={{ fontSize: 12, color: theme.textSecondary, marginTop: 2 }}>
+                              Wave, Orange Money, Carte Bancaire, Free Money
+                            </Text>
+                          </View>
+                        </View>
+                        <View style={{
+                          width: 22,
+                          height: 22,
+                          borderRadius: 11,
+                          borderWidth: 2,
+                          borderColor: '#0070b2',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          backgroundColor: '#0070b2'
+                        }}>
+                          <Check size={13} color="#fff" strokeWidth={3} />
+                        </View>
+                      </View>
+
+                      {/* Payment Badges Strip */}
+                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,112,178,0.1)' }}>
+                        {[
+                          { name: 'Wave', color: '#1CC2FF', bg: 'rgba(28,194,255,0.1)' },
+                          { name: 'Orange Money', color: '#FF7900', bg: 'rgba(255,121,0,0.1)' },
+                          { name: 'Free Money', color: '#059669', bg: 'rgba(5,150,105,0.1)' },
+                          { name: 'Carte Bancaire', color: '#6366F1', bg: 'rgba(99,102,241,0.1)' },
+                        ].map((badge) => (
+                          <View key={badge.name} style={{ backgroundColor: badge.bg, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 }}>
+                            <Text style={{ fontSize: 11, fontWeight: '700', color: badge.color }}>{badge.name}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    </TouchableOpacity>
+
+                    {/* Pre-filled Payer Details (Editable) */}
+                    <View style={{
+                      backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : '#f8fafc',
+                      borderRadius: 16,
+                      borderWidth: 1,
+                      borderColor: isDark ? 'rgba(255,255,255,0.06)' : '#e2e8f0',
+                      padding: 14,
+                      gap: 12
+                    }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <Text style={{ fontSize: 13, fontWeight: '800', color: theme.text, letterSpacing: 0.2 }}>
+                          Coordonnées du payeur
+                        </Text>
+                        <View style={{ backgroundColor: isDark ? 'rgba(0,112,178,0.15)' : '#e0f2fe', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                          <Text style={{ fontSize: 10, fontWeight: '700', color: '#0284c7' }}>Auto-rempli</Text>
+                        </View>
+                      </View>
+
+                      {/* Nom complet */}
+                      <View>
+                        <Text style={{ fontSize: 11, fontWeight: '700', color: theme.textSecondary, marginBottom: 5 }}>
+                          Nom et prénom
+                        </Text>
+                        <View style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          backgroundColor: isDark ? '#1e293b' : '#ffffff',
+                          borderRadius: 10,
+                          borderWidth: 1,
+                          borderColor: isDark ? 'rgba(255,255,255,0.08)' : '#cbd5e1',
+                          paddingHorizontal: 10
+                        }}>
+                          <UserIcon size={16} color={theme.textSecondary} />
+                          <TextInput
+                            value={payerFullName}
+                            onChangeText={setPayerFullName}
+                            placeholder="Nom et prénom du payeur"
+                            placeholderTextColor={theme.textSecondary}
+                            style={{
+                              flex: 1,
+                              paddingVertical: 9,
+                              paddingHorizontal: 8,
+                              fontSize: 13,
+                              color: theme.text,
+                              fontWeight: '600'
+                            }}
+                          />
+                        </View>
+                      </View>
+
+                      {/* Téléphone */}
+                      <View>
+                        <Text style={{ fontSize: 11, fontWeight: '700', color: theme.textSecondary, marginBottom: 5 }}>
+                          Numéro de téléphone (Wave / Orange Money)
+                        </Text>
+                        <View style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          backgroundColor: isDark ? '#1e293b' : '#ffffff',
+                          borderRadius: 10,
+                          borderWidth: 1,
+                          borderColor: isDark ? 'rgba(255,255,255,0.08)' : '#cbd5e1',
+                          paddingHorizontal: 10
+                        }}>
+                          <PhoneIcon size={16} color={theme.textSecondary} />
+                          <TextInput
+                            value={payerPhone}
+                            onChangeText={setPayerPhone}
+                            placeholder="77 000 00 00"
+                            placeholderTextColor={theme.textSecondary}
+                            keyboardType="phone-pad"
+                            style={{
+                              flex: 1,
+                              paddingVertical: 9,
+                              paddingHorizontal: 8,
+                              fontSize: 13,
+                              color: theme.text,
+                              fontWeight: '600'
+                            }}
+                          />
+                        </View>
+                      </View>
+
+                      {/* Email (Optionnel) */}
+                      <View>
+                        <Text style={{ fontSize: 11, fontWeight: '700', color: theme.textSecondary, marginBottom: 5 }}>
+                          Adresse e-mail (pour le reçu)
+                        </Text>
+                        <View style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          backgroundColor: isDark ? '#1e293b' : '#ffffff',
+                          borderRadius: 10,
+                          borderWidth: 1,
+                          borderColor: isDark ? 'rgba(255,255,255,0.08)' : '#cbd5e1',
+                          paddingHorizontal: 10
+                        }}>
+                          <MailIcon size={16} color={theme.textSecondary} />
+                          <TextInput
+                            value={payerEmail}
+                            onChangeText={setPayerEmail}
+                            placeholder="exemple@domaine.sn (optionnel)"
+                            placeholderTextColor={theme.textSecondary}
+                            keyboardType="email-address"
+                            autoCapitalize="none"
+                            style={{
+                              flex: 1,
+                              paddingVertical: 9,
+                              paddingHorizontal: 8,
+                              fontSize: 13,
+                              color: theme.text,
+                              fontWeight: '600'
+                            }}
+                          />
+                        </View>
+                      </View>
+
+                      <Text style={{ fontSize: 10.5, color: theme.textSecondary, fontStyle: 'italic', marginTop: 2 }}>
+                        Ces coordonnées sont automatiquement récupérées de votre compte pour pré-remplir votre transaction.
+                      </Text>
+                    </View>
+                  </>
+                )}
+
               </View>
             </View>
           )}
@@ -2790,7 +3033,7 @@ export default function NewRequestScreen() {
                   if (selectedActivity?.prix === 0) {
                     submitFreeRequest();
                   } else {
-                    handleInitiateAfrikpayPayment();
+                    handleInitiatePaytechPayment();
                   }
                 }
               }
@@ -2800,7 +3043,7 @@ export default function NewRequestScreen() {
                   {step === 0 ? 'Continuer' : 
                    (editId && step === 4) ? 'Enregistrer les modifications' : 
                    (recoursId && step === 3) ? 'Soumettre le recours' : 
-                   (!recoursId && !editId && step === 4 && selectedActivity?.prix > 0) ? 'Procéder au paiement' : 
+                   (!recoursId && !editId && step === 4 && selectedActivity?.prix > 0) ? `Procéder au paiement (${selectedActivity?.prix?.toLocaleString('fr-FR')} FCFA)` : 
                    (!recoursId && !editId && step === 4 && selectedActivity?.prix === 0) ? 'Soumettre la demande' : 
                    'Continuer vers la suite'}
                 </Text>
@@ -2940,9 +3183,9 @@ export default function NewRequestScreen() {
         </View>
       </Modal>
 
-      {/* AFRIKPAY WEBVIEW CHECKOUT MODAL */}
-      <Modal visible={showAfrikpayModal} animationType="slide" transparent={false}>
-        <View style={{ flex: 1, backgroundColor: theme.background }}>
+      {/* PAYTECH WEBVIEW CHECKOUT MODAL */}
+      <Modal visible={showPaytechModal} animationType="slide" transparent={false}>
+        <View style={{ flex: 1, backgroundColor: isDark ? '#0f172a' : '#ffffff' }}>
           {/* Modal Header */}
           <View style={{
             flexDirection: 'row',
@@ -2972,19 +3215,23 @@ export default function NewRequestScreen() {
                 <CreditCard size={18} color="#fff" />
               </View>
               <View>
-                <Text style={{ fontSize: 16, fontWeight: '900', color: theme.text }}>Paiement AfrikPay</Text>
-                <Text style={{ fontSize: 11, fontWeight: '700', color: '#f59e0b', textTransform: 'uppercase', letterSpacing: 0.5 }}>Mode Sandbox • Sans frais</Text>
+                <Text style={{ fontSize: 16, fontWeight: '900', color: theme.text }}>
+                  Paiement Sécurisé
+                </Text>
+                <Text style={{ fontSize: 11, fontWeight: '700', color: '#10b981', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                  Passerelle Officielle PayTech • Sécurisé
+                </Text>
               </View>
             </View>
             <TouchableOpacity 
               onPress={() => {
-                if (afrikpayPollingId) {
-                  clearInterval(afrikpayPollingId);
-                  setAfrikpayPollingId(null);
+                if (paytechPollingId) {
+                  clearInterval(paytechPollingId);
+                  setPaytechPollingId(null);
                 }
-                setShowAfrikpayModal(false);
-                setAfrikpayProgress(0);
-                Alert.alert('Paiement interrompu', 'Vous avez annulé la transaction.');
+                setShowPaytechModal(false);
+                setPaytechProgress(0);
+                Alert.alert('Paiement interrompu', 'Vous avez fermé la session de paiement.');
               }}
               style={{
                 width: 36,
@@ -2999,34 +3246,161 @@ export default function NewRequestScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Premium Browser Progress Bar */}
-          {afrikpayProgress < 1 && (
+          {/* Progress Bar */}
+          {paytechProgress < 1 && (
             <View style={{ height: 3, backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#e2e8f0', width: '100%' }}>
-              <View style={{ height: '100%', backgroundColor: '#0070b2', width: `${afrikpayProgress * 100}%` }} />
+              <View style={{ height: '100%', backgroundColor: '#0070b2', width: `${paytechProgress * 100}%` }} />
             </View>
           )}
 
-          {/* WebView */}
-          {afrikpayUrl ? (
+          {/* WebView with Deep Link & Redirection Handling */}
+          {paytechUrl ? (
             <WebView 
-              source={{ uri: afrikpayUrl }} 
+              source={{ uri: paytechUrl }} 
               style={{ flex: 1 }}
               javaScriptEnabled={true}
               domStorageEnabled={true}
-              incognito={true}
+              incognito={false}
               scalesPageToFit={true}
               showsVerticalScrollIndicator={true}
               showsHorizontalScrollIndicator={false}
               nestedScrollEnabled={true}
+              setSupportMultipleWindows={false}
               userAgent="Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1"
-              injectedJavaScript="true;"
+              injectedJavaScriptBeforeContentLoaded={`
+                (function() {
+                  window.open = function(url) {
+                    if (url) {
+                      window.location.href = url;
+                    }
+                    return null;
+                  };
+                })();
+                true;
+              `}
+              injectedJavaScript={`
+                (function() {
+                  // 1. Override window.open
+                  window.open = function(url) {
+                    if (url) {
+                      window.location.href = url;
+                    }
+                    return null;
+                  };
+
+                  // 2. Intercept clicks on wave links or links with target=_blank
+                  document.addEventListener('click', function(e) {
+                    var anchor = e.target && e.target.closest ? e.target.closest('a') : null;
+                    if (anchor && anchor.href) {
+                      if (anchor.href.indexOf('wave.com') !== -1 || anchor.getAttribute('target') === '_blank') {
+                        e.preventDefault();
+                        window.location.href = anchor.href;
+                        return;
+                      }
+                    }
+
+                    // If button "Cliquez pour payer" or any payment button is pressed
+                    var btn = e.target && e.target.closest ? e.target.closest('button, .btn, [role="button"]') : null;
+                    if (btn) {
+                      setTimeout(function() {
+                        var waveLink = document.getElementById('wave-url') || document.querySelector('a[href*="wave.com"]');
+                        if (waveLink && waveLink.href) {
+                          window.location.href = waveLink.href;
+                        }
+                      }, 250);
+                    }
+                  }, true);
+
+                  // 3. Intercept fetch responses that contain wave.com
+                  var origFetch = window.fetch;
+                  if (origFetch) {
+                    window.fetch = function() {
+                      return origFetch.apply(this, arguments).then(function(res) {
+                        try {
+                          res.clone().json().then(function(data) {
+                            if (data && data.url && data.url.indexOf('wave.com') !== -1) {
+                              window.location.href = data.url;
+                            }
+                          }).catch(function() {});
+                        } catch(e) {}
+                        return res;
+                      });
+                    };
+                  }
+
+                  // 4. MutationObserver for dynamic wave links inserted by PayTech (e.g. id="wave-url")
+                  var obs = new MutationObserver(function() {
+                    var wl = document.getElementById('wave-url') || document.querySelector('a[href*="wave.com"]');
+                    if (wl && wl.href && !wl.dataset.intercepted) {
+                      wl.dataset.intercepted = 'true';
+                      window.location.href = wl.href;
+                    }
+                  });
+                  obs.observe(document.documentElement, { childList: true, subtree: true });
+                })();
+                true;
+              `}
+              onOpenWindow={(syntheticEvent) => {
+                const { targetUrl } = syntheticEvent.nativeEvent;
+                if (targetUrl) {
+                  Linking.openURL(targetUrl).catch(() => {});
+                }
+              }}
               onLoadProgress={({ nativeEvent }) => {
-                setAfrikpayProgress(nativeEvent.progress);
+                setPaytechProgress(nativeEvent.progress);
+              }}
+              onShouldStartLoadWithRequest={(request) => {
+                const url = request.url;
+                if (!url) return false;
+
+                // 1. Check if it's a Wave Universal Link, deep link, or non-http(s) scheme
+                const isWaveUrl = url.includes('wave.com') || url.includes('pay.wave.com') || url.startsWith('wave:');
+                const isDeepLink = !url.startsWith('http://') && !url.startsWith('https://');
+
+                if (isWaveUrl || isDeepLink) {
+                  Linking.openURL(url).catch((err) => {
+                    console.warn('Cannot open external/native URL:', url, err);
+                  });
+                  return false;
+                }
+
+                // 2. Check if user hit success or cancel URL
+                if (url.includes('/payment/success') || url.includes('success=true') || url.includes('success=1')) {
+                  if (paytechPollingId) clearInterval(paytechPollingId);
+                  setPaytechPollingId(null);
+                  setShowPaytechModal(false);
+                  submitPaidRequest('PayTech');
+                  return false;
+                }
+                if (url.includes('/payment/cancel') || url.includes('canceled=true') || url.includes('cancel=true')) {
+                  if (paytechPollingId) clearInterval(paytechPollingId);
+                  setPaytechPollingId(null);
+                  setShowPaytechModal(false);
+                  Alert.alert('Paiement annulé', 'La transaction a été annulée.');
+                  return false;
+                }
+                return true;
+              }}
+              onNavigationStateChange={(navState) => {
+                const url = navState.url;
+                if (url && (url.includes('wave.com') || url.includes('pay.wave.com') || url.startsWith('wave:'))) {
+                  Linking.openURL(url).catch(() => {});
+                }
+                if (url.includes('/payment/success') || url.includes('success=true') || url.includes('success=1')) {
+                  if (paytechPollingId) clearInterval(paytechPollingId);
+                  setPaytechPollingId(null);
+                  setShowPaytechModal(false);
+                  submitPaidRequest('PayTech');
+                } else if (url.includes('/payment/cancel') || url.includes('canceled=true') || url.includes('cancel=true')) {
+                  if (paytechPollingId) clearInterval(paytechPollingId);
+                  setPaytechPollingId(null);
+                  setShowPaytechModal(false);
+                  Alert.alert('Paiement annulé', 'La transaction a été annulée.');
+                }
               }}
               onError={(syntheticEvent) => {
                 const { nativeEvent } = syntheticEvent;
                 console.warn('WebView error: ', nativeEvent);
-                Alert.alert('Erreur de chargement', 'Impossible de charger la page de paiement. Veuillez vérifier votre connexion.');
               }}
             />
           ) : (

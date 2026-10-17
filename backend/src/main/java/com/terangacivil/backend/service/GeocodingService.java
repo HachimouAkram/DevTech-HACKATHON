@@ -50,7 +50,7 @@ public class GeocodingService {
             // Nominatim REQUIRES a custom User-Agent to avoid HTTP 403 Forbidden
             HttpHeaders headers = new HttpHeaders();
             headers.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
-            headers.set("User-Agent", "TerangaCivil-App-Geocoding-Service/1.0");
+            headers.set("User-Agent", "SenInnov-App-Geocoding-Service/1.0");
 
             HttpEntity<String> entity = new HttpEntity<>(headers);
 

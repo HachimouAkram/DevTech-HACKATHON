@@ -37,7 +37,7 @@ export default function Chatbot({ user }) {
 
   async function initSession() {
     try {
-      const storedSess = localStorage.getItem(`teranga_chat_session_${user.id}`);
+      const storedSess = localStorage.getItem(`seninnov_chat_session_${user.id}`);
       if (storedSess) {
         setSessionId(storedSess);
         // Load messages for existing session
@@ -52,7 +52,7 @@ export default function Chatbot({ user }) {
         if (!response.ok) throw new Error('Impossible de créer une session chat');
         const data = await response.json();
         setSessionId(data.id);
-        localStorage.setItem(`teranga_chat_session_${user.id}`, data.id);
+        localStorage.setItem(`seninnov_chat_session_${user.id}`, data.id);
         // Welcome message based on role/permissions
         const isStaff = user?.permissions?.some(p => ['GERER_COMMUNE', 'GERER_CENTRE', 'GERER_ACTIVITES'].includes(p)) || user?.role === 'ADMIN';
         const userName = user?.nom_complet?.split(' ')[0] || 'Agent';
@@ -100,7 +100,7 @@ export default function Chatbot({ user }) {
         }
       } else {
         // Session might be deleted or expired
-        localStorage.removeItem(`teranga_chat_session_${user.id}`);
+        localStorage.removeItem(`seninnov_chat_session_${user.id}`);
         setSessionId(null);
       }
     } catch (err) {
@@ -119,7 +119,7 @@ export default function Chatbot({ user }) {
         method: 'DELETE',
         headers: getHeaders()
       });
-      localStorage.removeItem(`teranga_chat_session_${user.id}`);
+      localStorage.removeItem(`seninnov_chat_session_${user.id}`);
       setSessionId(null);
       setMessages([]);
       showToast("Discussion réinitialisée", "success");
@@ -247,7 +247,7 @@ export default function Chatbot({ user }) {
           transform: isOpen ? 'rotate(90deg) scale(0.9)' : 'scale(1)'
         }}
         className="chat-fab-button"
-        title="Assistant IA Teranga"
+        title="Assistant IA SenInnov"
       >
         {isOpen ? <X size={24} /> : (
           <div style={{ position: 'relative' }}>
@@ -316,7 +316,7 @@ export default function Chatbot({ user }) {
               </div>
               <div>
                 <div style={{ fontWeight: 700, fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  Teranga IA <Sparkles size={12} style={{ color: '#fbbf24' }} />
+                  SenInnov IA <Sparkles size={12} style={{ color: '#fbbf24' }} />
                 </div>
                 <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.85)', display: 'flex', alignItems: 'center', gap: '4px' }}>
                   <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981', display: 'inline-block' }}></span>

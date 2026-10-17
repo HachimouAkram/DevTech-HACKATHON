@@ -1,6 +1,6 @@
 import { API_BASE_URL } from '../../../utils/api.js';
 import React from 'react';
-import { X, Eye, DollarSign, ShieldAlert, Check, ClipboardCheck, XCircle } from 'lucide-react';
+import { X, Eye, DollarSign, ShieldAlert, Check, ClipboardCheck, XCircle, Download } from 'lucide-react';
 
 export default function DetailModal({
   isOpen,
@@ -25,6 +25,21 @@ export default function DetailModal({
   handleSendTransfertMessage
 }) {
   const [newMessageText, setNewMessageText] = React.useState('');
+  // Helper to safely resolve document URLs (relative, full, or local)
+  const resolveDocumentUrl = (rawUrl) => {
+    if (!rawUrl || typeof rawUrl !== 'string') return '';
+    const trimmed = rawUrl.trim();
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('data:')) {
+      return trimmed;
+    }
+    if (trimmed.startsWith('file://') || trimmed.startsWith('content://')) {
+      return trimmed;
+    }
+    const baseUrl = (API_BASE_URL || '').replace(/\/api\/?$/, '');
+    const path = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+    return `${baseUrl}${path}`;
+  };
+
   if (!isOpen || !selectedDemande) return null;
 
   return (
@@ -106,10 +121,12 @@ export default function DetailModal({
             <div>
               <h4 style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.75rem', color: 'var(--text-primary)' }}>Pièces Justificatives fournies</h4>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                {Object.entries(selectedDemande.documents_url).map(([key, relativeUrl]) => {
-                  if (!relativeUrl) return null;
-                  const absoluteUrl = `${API_BASE_URL.replace('/api', '')}${relativeUrl}`;
-                  const isPdf = relativeUrl.toLowerCase().endsWith('.pdf');
+                {Object.entries(selectedDemande.documents_url).map(([key, rawDocUrl]) => {
+                  if (!rawDocUrl) return null;
+                  const absoluteUrl = resolveDocumentUrl(rawDocUrl);
+                  const isPdf = rawDocUrl.toLowerCase().includes('.pdf');
+                  const isLocal = rawDocUrl.startsWith('file://') || rawDocUrl.startsWith('content://');
+                  
                   return (
                     <div key={key} style={{
                       display: 'flex',
@@ -118,26 +135,63 @@ export default function DetailModal({
                       background: 'var(--bg-primary)',
                       padding: '0.75rem 1rem',
                       borderRadius: '8px',
-                      border: '1px solid var(--border-color)'
+                      border: isLocal ? '1px dashed var(--warning)' : '1px solid var(--border-color)',
+                      flexWrap: 'wrap',
+                      gap: '0.5rem'
                     }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <span style={{ fontSize: '1.25rem' }}>{isPdf ? '📄' : '📷'}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, minWidth: '200px' }}>
+                        <span style={{ fontSize: '1.25rem' }}>{isPdf ? '📄' : isLocal ? '⚠️' : '📷'}</span>
                         <div>
-                          <div style={{ fontWeight: 600, fontSize: '0.85rem', textTransform: 'uppercase' }}>
-                            {key === 'cni' ? 'Carte d\'Identité (CNI)' : key === 'justificatif' ? 'Justificatif de Domicile/Filiation' : getFieldLabel(key)}
+                          <div style={{ fontWeight: 600, fontSize: '0.85rem', textTransform: 'uppercase', color: 'var(--text-primary)' }}>
+                            {key.trim() === 'cni' ? 'Carte d\'Identité (CNI)' : key.trim() === 'justificatif' ? 'Justificatif de Domicile/Filiation' : getFieldLabel(key.trim())}
                           </div>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                            {isPdf ? 'Format PDF' : 'Image/Photo'}
+                          <div style={{ fontSize: '0.75rem', color: isLocal ? '#f59e0b' : 'var(--text-muted)' }}>
+                            {isLocal 
+                              ? 'Fichier non synchronisé (resté sur le téléphone du citoyen)' 
+                              : (isPdf ? 'Document PDF officiel' : 'Image/Photo')}
                           </div>
                         </div>
                       </div>
-                      <button
-                        onClick={() => setPreviewFileUrl(absoluteUrl)}
-                        className="btn btn-secondary"
-                        style={{ fontSize: '0.85rem', padding: '0.35rem 0.75rem' }}
-                      >
-                        Visualiser
-                      </button>
+                      
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        {!isLocal ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => setPreviewFileUrl(absoluteUrl)}
+                              className="btn btn-primary"
+                              style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}
+                            >
+                              <Eye size={14} /> Visualiser
+                            </button>
+                            <a
+                              href={absoluteUrl.includes('/api/uploads/') ? absoluteUrl.replace('/api/uploads/', '/api/upload/download/') : absoluteUrl}
+                              download
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="btn btn-secondary"
+                              style={{ fontSize: '0.8rem', padding: '0.35rem 0.6rem', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '3px' }}
+                              title="Télécharger le fichier"
+                            >
+                              <Download size={13} />
+                            </a>
+                            <a
+                              href={absoluteUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="btn btn-secondary"
+                              style={{ fontSize: '0.8rem', padding: '0.35rem 0.6rem', textDecoration: 'none' }}
+                              title="Ouvrir dans un nouvel onglet"
+                            >
+                              ↗
+                            </a>
+                          </>
+                        ) : (
+                          <span style={{ fontSize: '0.75rem', color: '#f59e0b', fontWeight: 600, background: 'rgba(245, 158, 11, 0.1)', padding: '0.25rem 0.5rem', borderRadius: '4px' }}>
+                            Non téléversé
+                          </span>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
@@ -164,15 +218,25 @@ export default function DetailModal({
                     <div style={{ fontWeight: 600, color: '#3b82f6' }}>📄 Acte d'état civil disponible</div>
                     <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Le document officiel au format PDF a été généré et signé.</div>
                   </div>
-                  <a
-                    href={`${API_BASE_URL}/demandes/${selectedDemande.id}/pdf?token=${token}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="btn btn-primary"
-                    style={{ background: '#3b82f6', borderColor: '#3b82f6', textDecoration: 'none' }}
-                  >
-                    Télécharger le PDF
-                  </a>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <button
+                      type="button"
+                      onClick={() => setPreviewFileUrl(`${API_BASE_URL}/demandes/${selectedDemande.id}/pdf?token=${token}`)}
+                      className="btn btn-secondary"
+                      style={{ fontSize: '0.85rem', padding: '0.5rem 0.9rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      <Eye size={15} /> Visualiser
+                    </button>
+                    <a
+                      href={`${API_BASE_URL}/demandes/${selectedDemande.id}/pdf?token=${token}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-primary"
+                      style={{ background: '#3b82f6', borderColor: '#3b82f6', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      <Download size={15} /> Télécharger le PDF
+                    </a>
+                  </div>
                 </div>
               ) : (
                 <div style={{ background: 'rgba(245, 158, 11, 0.05)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(245, 158, 11, 0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

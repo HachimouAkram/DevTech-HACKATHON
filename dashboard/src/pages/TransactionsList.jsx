@@ -66,6 +66,14 @@ export default function TransactionsList({ token, currentUser }) {
         return <span className="badge" style={{ backgroundColor: 'rgba(255, 121, 0, 0.15)', color: '#FF7900', border: '1px solid #FF7900' }}>Orange Money</span>;
       case 'wave':
         return <span className="badge" style={{ backgroundColor: 'rgba(28, 194, 255, 0.15)', color: '#0084FF', border: '1px solid #1CC2FF' }}>Wave</span>;
+      case 'free_money':
+      case 'free money':
+        return <span className="badge" style={{ backgroundColor: 'rgba(5, 150, 105, 0.15)', color: '#059669', border: '1px solid #059669' }}>Free Money</span>;
+      case 'carte_bancaire':
+      case 'carte':
+        return <span className="badge" style={{ backgroundColor: 'rgba(99, 102, 241, 0.15)', color: '#6366F1', border: '1px solid #6366F1' }}>Carte Bancaire</span>;
+      case 'paytech':
+        return <span className="badge" style={{ backgroundColor: 'rgba(0, 112, 178, 0.15)', color: '#0070b2', border: '1px solid #0070b2' }}>PayTech</span>;
       case 'especes':
       case 'espèces':
         return <span className="badge" style={{ backgroundColor: 'rgba(16, 185, 129, 0.15)', color: '#10B981', border: '1px solid #10B981' }}>Espèces</span>;
@@ -137,8 +145,11 @@ export default function TransactionsList({ token, currentUser }) {
                 onChange={(e) => { setModePaiementFilter(e.target.value); setCurrentPage(1); }}
               >
                 <option value="">Tous les modes</option>
-                <option value="orange_money">Orange Money</option>
                 <option value="wave">Wave</option>
+                <option value="orange_money">Orange Money</option>
+                <option value="free_money">Free Money</option>
+                <option value="carte_bancaire">Carte Bancaire</option>
+                <option value="paytech">PayTech</option>
                 <option value="especes">Espèces</option>
               </select>
             </div>

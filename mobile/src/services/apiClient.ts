@@ -1,3 +1,5 @@
+import * as FileSystem from 'expo-file-system/legacy';
+import { File as ExpoFile } from 'expo-file-system';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import Constants from 'expo-constants';
@@ -319,7 +321,7 @@ export const apiFetch = async (endpoint: string, options: RequestOptions = {}) =
 
 export const apiUpload = async (
   endpoint: string, 
-  fileData: { uri: string; name: string; type: string },
+  fileData: { uri: string; name?: string; type?: string },
   options: { headers?: Record<string, string> } = {}
 ) => {
   const isSyncProcess = options.headers && options.headers['X-Sync-Process'] === 'true';
@@ -335,16 +337,24 @@ export const apiUpload = async (
 
   const url = `${getApiUrl()}${endpoint}`;
   
-  const formData = new FormData();
-  formData.append('file', {
-    uri: fileData.uri,
-    name: fileData.name,
-    type: fileData.type,
-  } as any);
+  // Normalize filename and accurate mime type
+  const rawUri = fileData.uri;
+  const filename = fileData.name || rawUri.split('/').pop() || `doc_${Date.now()}.jpg`;
+  const ext = filename.split('.').pop()?.toLowerCase();
+  let mimeType = fileData.type;
+  if (!mimeType || mimeType === 'application/octet-stream') {
+    if (ext === 'png') mimeType = 'image/png';
+    else if (ext === 'pdf') mimeType = 'application/pdf';
+    else if (ext === 'webp') mimeType = 'image/webp';
+    else mimeType = 'image/jpeg';
+  }
 
-  const headers: Record<string, string> = {
-    'Content-Type': 'multipart/form-data',
-  };
+  const headers: Record<string, string> = {};
+  if (options.headers) {
+    Object.assign(headers, options.headers);
+  }
+  delete headers['Content-Type'];
+  delete headers['content-type'];
 
   let activeToken = authToken;
   if (!activeToken) {
@@ -357,20 +367,89 @@ export const apiUpload = async (
     headers['Authorization'] = `Bearer ${activeToken}`;
   }
 
+  // ── STRATEGY 1: Native FileSystem.uploadAsync (Fast, streaming, 100% immune to FormData issues) ──
+  try {
+    if (FileSystem && typeof FileSystem.uploadAsync === 'function') {
+      const uploadRes = await FileSystem.uploadAsync(url, rawUri, {
+        httpMethod: 'POST',
+        uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+        fieldName: 'file',
+        mimeType: mimeType,
+        headers,
+      });
+
+      // Handle connection restoration
+      const wasOffline = lastNetworkErrorTime > 0 || !cachedIsOnline;
+      lastNetworkErrorTime = 0;
+      cachedIsOnline = true;
+
+      if (wasOffline) {
+        DeviceEventEmitter.emit('network_restored');
+      }
+
+      let parsedBody: any = null;
+      if (uploadRes.body) {
+        try {
+          parsedBody = JSON.parse(uploadRes.body);
+        } catch (e) {}
+      }
+
+      if (uploadRes.status >= 200 && uploadRes.status < 300) {
+        return parsedBody;
+      }
+
+      throw new ApiError((parsedBody && parsedBody.message) || `Erreur d'upload ${uploadRes.status}`, uploadRes.status);
+    }
+  } catch (nativeErr: any) {
+    console.warn('[apiUpload] FileSystem.uploadAsync failed or unavailable, trying fetch fallback:', nativeErr.message);
+    if (nativeErr instanceof ApiError) {
+      throw nativeErr;
+    }
+  }
+
+  // ── STRATEGY 2: Modern Expo File / FormData fallback ──
+  const formData = new FormData();
+  let fileAppended = false;
+
+  try {
+    const expoFile = new ExpoFile(rawUri);
+    formData.append('file', expoFile as any, filename);
+    fileAppended = true;
+  } catch (fileErr) {
+    console.warn('[apiUpload] ExpoFile creation failed:', fileErr);
+  }
+
+  if (!fileAppended) {
+    try {
+      const fileRes = await fetch(rawUri);
+      const blob = await fileRes.blob();
+      formData.append('file', blob, filename);
+      fileAppended = true;
+    } catch (blobErr) {
+      console.warn('[apiUpload] Blob fetch failed:', blobErr);
+    }
+  }
+
+  if (!fileAppended) {
+    formData.append('file', {
+      uri: rawUri,
+      name: filename,
+      type: mimeType,
+    } as any);
+  }
+
   try {
     const response = await fetchWithTimeoutAndRetry(url, {
       method: 'POST',
       headers,
       body: formData,
-    }, 15000); // 15s timeout for uploads
+    }, 30000);
 
-    // Reset circuit breaker on successful upload
     const wasOffline = lastNetworkErrorTime > 0 || !cachedIsOnline;
     lastNetworkErrorTime = 0;
     cachedIsOnline = true;
 
     if (wasOffline) {
-      console.log('[API] Connection restored via successful upload! Triggering sync...');
       DeviceEventEmitter.emit('network_restored');
     }
 
@@ -379,9 +458,7 @@ export const apiUpload = async (
     if (responseText) {
       try {
         data = JSON.parse(responseText);
-      } catch (jsonErr) {
-        // Not a JSON response
-      }
+      } catch (jsonErr) {}
     }
     if (!response.ok) {
       throw new ApiError((data && data.message) || `Erreur d'upload ${response.status}`, response.status);
@@ -395,13 +472,11 @@ export const apiUpload = async (
       error.name === 'AbortError' ||
       error.message.includes('aborted')
     );
-    if (isNetworkError) {
-      // Trip circuit breaker on network error
+    if (isNetworkError && isCurrentlyOffline(isSyncProcess)) {
       lastNetworkErrorTime = Date.now();
       if (isSyncProcess) {
         throw new ApiError(`Échec upload sync vers ${url} : ${error.message || 'Réseau coupé ou timeout'}`, 503);
       }
-      console.log(`[Resilient Offline Fallback] Upload failed. Deferring upload: ${fileData.uri}`);
       return { status: 'success', data: { url: fileData.uri }, offline: true };
     }
     throw error;

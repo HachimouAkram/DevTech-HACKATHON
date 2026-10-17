@@ -124,8 +124,8 @@ export default function WelcomeScreen() {
             style={styles.header}
           >
             <View style={styles.brandTitleRow}>
-              <Text style={[styles.appNameTeranga, { color: theme.text }]}>Teranga</Text>
-              <Text style={styles.appNameCivil}>Civil</Text>
+              <Text style={[styles.appNameSenInnov, { color: theme.text }]}>SenInnov</Text>
+              <Text style={styles.appNameInnov}>Innov</Text>
             </View>
             <View style={styles.tagBadge}>
               <Text style={styles.tagBadgeText}>RÉPUBLIQUE DU SÉNÉGAL</Text>
@@ -180,7 +180,7 @@ export default function WelcomeScreen() {
             <Text style={[styles.secondaryButtonText, { color: theme.text }]}>Créer un compte</Text>
           </AnimatedPressable>
 
-          <Text style={styles.footerText}>République du Sénégal — TerangaCivil 2026</Text>
+          <Text style={styles.footerText}>République du Sénégal — SenInnov 2026</Text>
         </Animated.View>
       </ScrollView>
     </LinearGradient>
@@ -232,8 +232,8 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   logoImage: {
-    width: 68,
-    height: 68,
+    width: 110,
+    height: 110,
   },
   header: {
     alignItems: 'center',
@@ -245,12 +245,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  appNameTeranga: {
+  appNameSenInnov: {
     fontSize: 34,
     fontWeight: '800',
     letterSpacing: -0.6,
   },
-  appNameCivil: {
+  appNameInnov: {
     fontSize: 34,
     fontWeight: '800',
     letterSpacing: -0.6,

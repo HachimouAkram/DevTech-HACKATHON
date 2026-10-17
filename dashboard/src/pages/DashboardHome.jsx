@@ -610,7 +610,11 @@ export default function DashboardHome({ token, currentUser }) {
               <span className="badge badge-green"><CheckCircle size={10} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'middle' }} /> SYSTÈME EN LIGNE</span>
               <span className="badge badge-green" style={{ background: 'rgba(251, 191, 36, 0.2)', color: '#fbbf24' }}>PÉRIMÈTRE : {perimetre}</span>
             </div>
-            <h2>TERANGA CIVIL CENTRALISE LA GESTION ET LE SUIVI DE L'ADMINISTRATION TERRITORIALE ET DES SERVICES CITOYENS.</h2>
+            <h2>
+              <span className="banner-title-brand">SenInnov</span>
+              <span className="banner-title-separator">·</span>
+              <span className="banner-title-desc">Gestion centralisée et suivi de l'administration territoriale & des services citoyens</span>
+            </h2>
             <p style={{ marginTop: '8.5px', color: 'rgba(255, 255, 255, 0.95)', fontSize: '14px', fontWeight: '500' }}>
               Bonjour <strong>{currentUser?.nom_complet}</strong>, {getWelcomeMessage()}
             </p>
@@ -1038,7 +1042,11 @@ export default function DashboardHome({ token, currentUser }) {
               <span className="badge badge-green"><CheckCircle size={10} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'middle' }} /> SYSTÈME EN LIGNE</span>
               <span className="badge badge-green" style={{ background: 'rgba(251, 191, 36, 0.2)', color: '#fbbf24' }}>PÉRIMÈTRE : {perimetre}</span>
             </div>
-            <h2>TERANGA CIVIL CENTRALISE LA GESTION ET LE SUIVI DE L'ADMINISTRATION TERRITORIALE ET DES SERVICES CITOYENS.</h2>
+            <h2>
+              <span className="banner-title-brand">SenInnov</span>
+              <span className="banner-title-separator">·</span>
+              <span className="banner-title-desc">Gestion centralisée et suivi de l'administration territoriale & des services citoyens</span>
+            </h2>
             <p style={{ marginTop: '8.5px', color: 'rgba(255, 255, 255, 0.95)', fontSize: '14px', fontWeight: '500' }}>
               Bonjour <strong>{currentUser?.nom_complet}</strong>, {getWelcomeMessage()}
             </p>
@@ -1467,7 +1475,11 @@ export default function DashboardHome({ token, currentUser }) {
               <span className="badge badge-green"><CheckCircle size={10} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'middle' }} /> SYSTÈME EN LIGNE</span>
               <span className="badge badge-green" style={{ background: 'rgba(251, 191, 36, 0.2)', color: '#fbbf24' }}>PÉRIMÈTRE : {perimetre}</span>
             </div>
-            <h2>TERANGA CIVIL CENTRALISE LA GESTION ET LE SUIVI DE L'ADMINISTRATION TERRITORIALE ET DES SERVICES CITOYENS.</h2>
+            <h2>
+              <span className="banner-title-brand">SenInnov</span>
+              <span className="banner-title-separator">·</span>
+              <span className="banner-title-desc">Gestion centralisée et suivi de l'administration territoriale & des services citoyens</span>
+            </h2>
             <p style={{ marginTop: '8.5px', color: 'rgba(255, 255, 255, 0.95)', fontSize: '14px', fontWeight: '500' }}>
               Bonjour <strong>{currentUser?.nom_complet}</strong>, {getWelcomeMessage()}
             </p>
@@ -1986,7 +1998,11 @@ export default function DashboardHome({ token, currentUser }) {
             <span className="badge badge-green"><CheckCircle size={10} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'middle' }} /> SYSTÈME EN LIGNE</span>
             <span className="badge badge-green" style={{ background: 'rgba(251, 191, 36, 0.2)', color: '#fbbf24' }}>PÉRIMÈTRE : {perimetre}</span>
           </div>
-          <h2>TERANGA CIVIL CENTRALISE LA GESTION ET LE SUIVI DE L'ADMINISTRATION TERRITORIALE ET DES SERVICES CITOYENS.</h2>
+          <h2>
+              <span className="banner-title-brand">SenInnov</span>
+              <span className="banner-title-separator">·</span>
+              <span className="banner-title-desc">Gestion centralisée et suivi de l'administration territoriale & des services citoyens</span>
+            </h2>
           <p style={{ marginTop: '8.5px', color: 'rgba(255, 255, 255, 0.95)', fontSize: '14px', fontWeight: '500' }}>
             Bonjour <strong>{currentUser?.nom_complet}</strong>, {getWelcomeMessage()}
           </p>

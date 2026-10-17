@@ -221,7 +221,7 @@ public class UserService {
             new Thread(() -> {
                 try {
                     Map<String, Object> emailVars = new HashMap<>();
-                    emailVars.put("title", "Création de votre compte Teranga Civil");
+                    emailVars.put("title", "Création de votre compte SenInnov");
                     emailVars.put("message", "Un compte d'accès vous a été créé par un administrateur.<br>Votre mot de passe provisoire est : <b>" + tempPwd + "</b><br>Vous devrez le modifier lors de votre première connexion.");
                     emailService.sendHtmlEmail(savedUser.getEmail(), "Création de compte", "email-template", emailVars);
                 } catch (Exception e) {
@@ -465,7 +465,7 @@ public class UserService {
         new Thread(() -> {
             try {
                 Map<String, Object> emailVars = new HashMap<>();
-                emailVars.put("title", "Réinitialisation de votre mot de passe Teranga Civil");
+                emailVars.put("title", "Réinitialisation de votre mot de passe SenInnov");
                 emailVars.put("message", "Votre mot de passe a été réinitialisé par un administrateur.<br>Votre nouveau mot de passe temporaire est : <b>" + randomPassword + "</b><br>Vous devrez le modifier lors de votre prochaine connexion.");
                 emailService.sendHtmlEmail(user.getEmail(), "Réinitialisation de mot de passe", "email-template", emailVars);
             } catch (Exception e) {

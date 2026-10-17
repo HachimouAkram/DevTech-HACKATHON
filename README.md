@@ -1,11 +1,11 @@
 <div align="center">
 
-<img src="mobile/assets/images/logo.png" alt="Teranga Civil Logo" width="100" />
+<img src="mobile/assets/images/logo.png" alt="SenInnov Logo" width="100" />
 
-# 🇸🇳 Teranga Civil — Plateforme Numérique d'État Civil
+# 🇸🇳 SenInnov — Plateforme Numérique d'État Civil
 ### Hackathon DevTech — Innovation & Dématérialisation
 
-**Teranga Civil** est une plateforme complète et moderne de gestion de l'état civil, conçue pour moderniser et dématérialiser les démarches administratives au Sénégal.  
+**SenInnov** est une plateforme complète et moderne de gestion de l'état civil, conçue pour moderniser et dématérialiser les démarches administratives au Sénégal.  
 Elle permet aux citoyens de soumettre leurs demandes d'actes d'état civil depuis leur smartphone avec assistance IA, et aux agents et officiers de les instruire, signer et valider depuis un tableau de bord web centralisé.
 
 [![Repository](https://img.shields.io/badge/GitHub-DevTech--HACKATHON-blue?style=flat-square&logo=github)](https://github.com/HachimouAkram/DevTech-HACKATHON)
@@ -47,10 +47,10 @@ Elle permet aux citoyens de soumettre leurs demandes d'actes d'état civil depui
 
 ## 🌍 Vue d'ensemble
 
-Teranga Civil résout un problème concret : **les citoyens sénégalais doivent souvent effectuer de longs déplacements physiques dans les mairies pour obtenir leurs actes civils**, générant lenteurs, pertes de temps et engorgement des services d'état civil.
+SenInnov résout un problème concret : **les citoyens sénégalais doivent souvent effectuer de longs déplacements physiques dans les mairies pour obtenir leurs actes civils**, générant lenteurs, pertes de temps et engorgement des services d'état civil.
 
 La solution apporte un écosystème 100% interconnecté :
-- 📱 **Une application mobile citoyenne & agent** (iOS & Android) : soumission de dossiers, formulaires dynamiques, paiement dématérialisé (Wave, Orange Money, AfrikPay), pointage biométrique et mode hors-ligne.
+- 📱 **Une application mobile citoyenne & agent** (iOS & Android) : soumission de dossiers, formulaires dynamiques, paiement dématérialisé (Wave, Orange Money, PayTech), pointage biométrique et mode hors-ligne.
 - 🤖 **Un module IA & Biométrie** (Python / FastAPI) : assistant virtuel intelligent (Cohere / Groq), pointage par reconnaissance faciale pour agents, et vérification automatisée.
 - 🖥️ **Un tableau de bord web complet** : traitement des dossiers, signature électronique, concepteur de formulaires drag & drop, gestion géographique et statistiques temps réel.
 - ⚙️ **Un backend Spring Boot haute performance** : architecture sécurisée par JWT, génération de documents officiels PDF avec QR Code certifié.
@@ -120,7 +120,7 @@ DevTech-HACKATHON/
 │   ├── face_rec.py                  # Reconnaissance faciale & encodages
 │   ├── main.py                      # Application FastAPI (Port 8000)
 │   ├── requirements.txt             # Dépendances Python
-│   └── .env                         # Clés d'API (Cohere, Groq, AfrikPay)
+│   └── .env                         # Clés d'API (Cohere, Groq, PayTech)
 │
 ├── 🖥️ dashboard/                    # Interface Web Admin (React 19 + Vite)
 │   ├── src/
@@ -156,7 +156,7 @@ DevTech-HACKATHON/
 | **Catalogue des actes** | Navigation par région, bureau/mairie, service et acte civil |
 | **Formulaires intelligents** | Génération dynamique à partir du schéma central avec champs conditionnels |
 | **Upload de justificatifs** | Numérisation de documents via appareil photo ou sélecteur PDF |
-| **Paiement intégré** | Intégration Wave, Orange Money et passerelle de test AfrikPay |
+| **Paiement intégré** | Intégration Wave, Orange Money et passerelle de test PayTech |
 | **Assistant IA intégré** | Chatbot d'aide aux démarches administratives disponible 24/7 |
 | **Pointage facial agent** | Enregistrement de présence avec reconnaissance biométrique |
 | **Mode Hors-Ligne (Offline)** | Enregistrement SQLite local et synchronisation automatique en cas de reconnexion |
@@ -284,7 +284,7 @@ Scannez le QR Code affiché dans le terminal avec l'application **Expo Go** (And
 ### Backend — `backend/.env`
 ```env
 PORT=5000
-DATABASE_URL=postgresql://postgres:securepassword@localhost:5440/teranga_civil
+DATABASE_URL=postgresql://postgres:securepassword@localhost:5440/seninnov
 JWT_SECRET=terangacivil2026_super_secret_jwt_key_123456
 JWT_EXPIRES_IN=24h
 NODE_ENV=development
@@ -292,10 +292,12 @@ NODE_ENV=development
 
 ### Module IA — `ia/.env`
 ```env
-DATABASE_URL=postgresql://postgres:securepassword@localhost:5440/teranga_civil
+DATABASE_URL=postgresql://postgres:securepassword@localhost:5440/seninnov
 COHERE_API_KEY=votre_cle_cohere
 GROQ_API_KEY=votre_cle_groq
-AFRIKPAY_TEST_KEY=votre_cle_afrikpay
+PAYTECH_API_KEY=6e7efb60ea38e3d394b70469a73b6e0dc62ee8cc4d201ee1739de45606453e0d
+PAYTECH_API_SECRET=ad7cdb662650e35c7fb7bb5140ba3216c5319bfc1901508ba66ff36b1f34d2cb
+PAYTECH_ENV=test
 ```
 
 ---
@@ -334,7 +336,7 @@ AFRIKPAY_TEST_KEY=votre_cle_afrikpay
 
 ## 🤝 Contributeurs
 
-Projet développé avec passion dans le cadre du **DevTech HACKATHON** par l'équipe **Teranga Civil**.
+Projet développé avec passion dans le cadre du **DevTech HACKATHON** par l'équipe **SenInnov**.
 
 - Repository officiel : [HachimouAkram/DevTech-HACKATHON](https://github.com/HachimouAkram/DevTech-HACKATHON)
 
@@ -346,6 +348,6 @@ Ce projet est sous licence **MIT** — voir le fichier [mobile/LICENSE](mobile/L
 
 <div align="center">
 
-**Teranga Civil** — *La modernisation de l'état civil au service de chaque citoyen sénégalais 🇸🇳*
+**SenInnov** — *La modernisation de l'état civil au service de chaque citoyen sénégalais 🇸🇳*
 
 </div>

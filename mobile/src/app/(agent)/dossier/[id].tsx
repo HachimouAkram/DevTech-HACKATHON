@@ -1,7 +1,11 @@
+import { WebView } from "react-native-webview";
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Linking, Modal, DeviceEventEmitter } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { AlertCircle, ArrowLeft, CheckCircle, Circle, MapPin, DollarSign, FileText, XCircle, ClipboardCheck, MessageCircle, Info, Camera, Image as ImageIcon, Send, X } from 'lucide-react-native';
+import { AlertCircle, ArrowLeft, CheckCircle, Circle, MapPin, DollarSign, FileText, XCircle, ClipboardCheck, MessageCircle, Info, Camera, Image as ImageIcon, Send, X, Download, Eye, ExternalLink } from 'lucide-react-native';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
+import { Platform } from 'react-native';
 import { apiFetch, getApiUrl, apiUpload } from '../../../services/apiClient';
 import { useAuth } from '../../../context/AuthContext';
 import * as ImagePicker from 'expo-image-picker';
@@ -22,7 +26,60 @@ export default function DemandeDetail() {
   
   const [demande, setDemande] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [viewerVisible, setViewerVisible] = useState(false);
+  const [viewerUrl, setViewerUrl] = useState('');
+  const [viewerTitle, setViewerTitle] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+  const [downloadingDoc, setDownloadingDoc] = useState(false);
+
+  const handleDownloadOrShareDoc = async (targetUrl?: string, customTitle?: string) => {
+    const url = targetUrl || viewerUrl;
+    if (!url) return;
+    try {
+      setDownloadingDoc(true);
+      const isLocal = url.startsWith('file://') || url.startsWith('content://');
+      let localFilePath = url;
+
+      if (!isLocal) {
+        const cleanName = (customTitle || viewerTitle || 'document')
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, '_');
+        const isDocx = url.toLowerCase().includes('.docx');
+        const isPng = url.toLowerCase().includes('.png');
+        const isJpg = url.toLowerCase().includes('.jpg') || url.toLowerCase().includes('.jpeg');
+        const ext = isDocx ? '.docx' : (isPng ? '.png' : (isJpg ? '.jpg' : '.pdf'));
+        
+        const tempPath = `${FileSystem.documentDirectory}${cleanName}_${Date.now()}${ext}`;
+        const downloadResult = await FileSystem.downloadAsync(url, tempPath);
+        
+        if (downloadResult.status !== 200 && downloadResult.status !== 302 && downloadResult.status !== 304) {
+          throw new Error(`Erreur serveur (${downloadResult.status})`);
+        }
+        localFilePath = downloadResult.uri;
+      }
+
+      const isDocx = localFilePath.toLowerCase().endsWith('.docx');
+      const isPdf = localFilePath.toLowerCase().endsWith('.pdf');
+      const mime = isDocx 
+        ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' 
+        : (isPdf ? 'application/pdf' : 'image/jpeg');
+
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(localFilePath, {
+          mimeType: mime,
+          dialogTitle: `Enregistrer ou Ouvrir ${customTitle || viewerTitle || 'le document'}`,
+          UTI: isDocx ? 'org.openxmlformats.wordprocessingml.document' : (isPdf ? 'com.adobe.pdf' : 'public.jpeg'),
+        });
+      } else {
+        Alert.alert('Fichier disponible', `Document enregistré : ${localFilePath}`);
+      }
+    } catch (err: any) {
+      console.warn('Erreur download/share doc:', err);
+      Alert.alert('Erreur', 'Impossible de télécharger le document : ' + (err.message || 'Erreur réseau'));
+    } finally {
+      setDownloadingDoc(false);
+    }
+  };
 
   // Rapport intervention states
   const [photoAvant, setPhotoAvant] = useState<string | null>(null);
@@ -254,15 +311,27 @@ export default function DemandeDetail() {
 
   const resolveImageUrl = (url: string | null | undefined) => {
     if (!url) return null;
-    if (url.startsWith('file://') || url.startsWith('content://') || url.startsWith('http://') || url.startsWith('https://')) {
-      return url;
+    const trimmed = url.trim();
+    if (trimmed.startsWith('file://') || trimmed.startsWith('content://') || trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      return trimmed;
     }
-    if (url.startsWith('/')) {
+    if (trimmed.startsWith('/')) {
       const apiUrl = getApiUrl();
       const origin = apiUrl.endsWith('/api') ? apiUrl.slice(0, -4) : apiUrl;
-      return `${origin}${url}`;
+      return `${origin}${trimmed}`;
     }
-    return url;
+    return trimmed;
+  };
+
+  const resolveDocUrl = (url: string | null | undefined) => {
+    if (!url) return '';
+    const trimmed = url.trim();
+    if (trimmed.startsWith('file://') || trimmed.startsWith('content://') || trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      return trimmed;
+    }
+    const apiUrl = getApiUrl();
+    const origin = apiUrl.endsWith('/api') ? apiUrl.slice(0, -4) : apiUrl;
+    return `${origin}${trimmed.startsWith('/') ? '' : '/'}${trimmed}`;
   };
 
   if (loading) {
@@ -413,17 +482,37 @@ export default function DemandeDetail() {
       {/* Pièces Justificatives */}
       {demande.documents_url && Object.keys(demande.documents_url).some(k => demande.documents_url[k]) && (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Pièces Justificatives</Text>
-          {Object.entries(demande.documents_url).map(([key, url]) => {
-            if (!url) return null;
+          <Text style={styles.sectionTitle}>Pièces Justificatives Fournies</Text>
+          {Object.entries(demande.documents_url).map(([key, rawUrl]: any) => {
+            if (!rawUrl) return null;
+            const isLocal = typeof rawUrl === 'string' && (rawUrl.startsWith('file://') || rawUrl.startsWith('content://'));
+            const resolved = resolveDocUrl(rawUrl);
             return (
-              <View key={key} style={styles.documentRow}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <FileText size={20} color="#6b7280" />
-                  <Text style={styles.documentName}>{key.toUpperCase()}</Text>
+              <View key={key} style={[styles.documentRow, isLocal && { borderColor: '#f59e0b', borderWidth: 1, borderStyle: 'dashed' }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                  <FileText size={20} color={isLocal ? "#f59e0b" : "#2563eb"} />
+                  <View style={{ marginLeft: 8, flex: 1 }}>
+                    <Text style={styles.documentName}>{key.trim().toUpperCase()}</Text>
+                    {isLocal && (
+                      <Text style={{ fontSize: 10, color: '#f59e0b', fontWeight: '600' }}>Non synchronisé (resté sur le téléphone)</Text>
+                    )}
+                  </View>
                 </View>
-                <TouchableOpacity onPress={() => Linking.openURL(`${getApiUrl().replace('/api', '')}${url}`)}>
-                  <Text style={styles.documentLink}>Voir</Text>
+                <TouchableOpacity 
+                  style={{ backgroundColor: isLocal ? '#fffbeb' : '#eff6ff', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 }}
+                  onPress={() => {
+                    if (isLocal) {
+                      Alert.alert('Document local', 'Ce document a été sélectionné hors-ligne sur l\'appareil du citoyen et attend d\'être synchronisé.');
+                    } else {
+                      setViewerUrl(resolved);
+                      setViewerTitle(key.trim().toUpperCase());
+                      setViewerVisible(true);
+                    }
+                  }}
+                >
+                  <Text style={[styles.documentLink, { color: isLocal ? '#d97706' : '#2563eb', fontWeight: '700' }]}>
+                    {isLocal ? 'Non reçu' : 'Visualiser'}
+                  </Text>
                 </TouchableOpacity>
               </View>
             );
@@ -707,7 +796,186 @@ export default function DemandeDetail() {
           </View>
         </View>
       </Modal>
-    </ScrollView>
+    
+      {/* DOCUMENT VIEWER MODAL */}
+      <Modal visible={viewerVisible} animationType="slide" transparent={false}>
+        <View style={{ flex: 1, backgroundColor: '#0f172a' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 50, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.1)' }}>
+            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700', flex: 1, marginRight: 8 }} numberOfLines={1}>
+              {viewerTitle || 'Aperçu du document'}
+            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <TouchableOpacity
+                onPress={() => handleDownloadOrShareDoc(viewerUrl, viewerTitle)}
+                disabled={downloadingDoc}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 6,
+                  backgroundColor: '#2563eb',
+                  paddingHorizontal: 12,
+                  paddingVertical: 7,
+                  borderRadius: 8
+                }}
+              >
+                {downloadingDoc ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <>
+                    <Download size={14} color="#fff" />
+                    <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>Télécharger</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => {
+                  if (viewerUrl) {
+                    Linking.openURL(viewerUrl).catch(() => {});
+                  }
+                }}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
+                  backgroundColor: 'rgba(255,255,255,0.12)',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                <ExternalLink size={15} color="#fff" />
+              </TouchableOpacity>
+
+              <TouchableOpacity onPress={() => setViewerVisible(false)} style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' }}>
+                <X size={18} color="#fff" />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <View style={{ flex: 1, backgroundColor: '#020617' }}>
+            {(() => {
+              if (!viewerUrl) return null;
+              const isPdf = viewerUrl.toLowerCase().includes('.pdf') || viewerUrl.includes('/pdf');
+              
+              if (!isPdf) {
+                return (
+                  <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 8 }}>
+                    <Image source={{ uri: viewerUrl }} style={{ width: '100%', height: '100%', resizeMode: 'contain' }} />
+                  </View>
+                );
+              }
+
+              return (
+                <ScrollView contentContainerStyle={{ flexGrow: 1, width: '100%', padding: 20, justifyContent: 'center', alignItems: 'center' }}>
+                  <View style={{
+                    width: '100%',
+                    maxWidth: 420,
+                    backgroundColor: '#1e293b',
+                    borderRadius: 20,
+                    padding: 24,
+                    alignItems: 'center',
+                    borderWidth: 1,
+                    borderColor: 'rgba(255,255,255,0.08)',
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.25,
+                    shadowRadius: 10,
+                    elevation: 4
+                  }}>
+                    <View style={{
+                      width: 68,
+                      height: 68,
+                      borderRadius: 20,
+                      backgroundColor: 'rgba(239,68,68,0.15)',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginBottom: 16
+                    }}>
+                      <FileText size={34} color="#ef4444" />
+                    </View>
+
+                    <Text style={{ fontSize: 17, fontWeight: '800', color: '#fff', textAlign: 'center', marginBottom: 6 }}>
+                      {viewerTitle || 'Document PDF Justificatif'}
+                    </Text>
+                    
+                    <View style={{ backgroundColor: 'rgba(16,185,129,0.15)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6, marginBottom: 14 }}>
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: '#10b981', textTransform: 'uppercase' }}>
+                        Fichier PDF Soumis • Prêt
+                      </Text>
+                    </View>
+
+                    <Text style={{ fontSize: 13, color: '#94a3b8', textAlign: 'center', lineHeight: 19, marginBottom: 20 }}>
+                      Ce document PDF soumis par le citoyen est disponible. Vous pouvez l'ouvrir en plein écran ou le télécharger.
+                    </Text>
+
+                    <TouchableOpacity
+                      activeOpacity={0.85}
+                      disabled={downloadingDoc}
+                      onPress={() => handleDownloadOrShareDoc(viewerUrl, viewerTitle)}
+                      style={{
+                        width: '100%',
+                        backgroundColor: '#2563eb',
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        paddingVertical: 13,
+                        borderRadius: 12,
+                        gap: 8,
+                        marginBottom: 10
+                      }}
+                    >
+                      {downloadingDoc ? (
+                        <ActivityIndicator color="#fff" size="small" />
+                      ) : (
+                        <>
+                          <Eye size={17} color="#fff" />
+                          <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>
+                            Ouvrir & Consulter le PDF
+                          </Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      activeOpacity={0.85}
+                      disabled={downloadingDoc}
+                      onPress={() => handleDownloadOrShareDoc(viewerUrl, viewerTitle)}
+                      style={{
+                        width: '100%',
+                        backgroundColor: 'rgba(255,255,255,0.08)',
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        paddingVertical: 12,
+                        borderRadius: 12,
+                        gap: 8
+                      }}
+                    >
+                      <Download size={16} color="#fff" />
+                      <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600' }}>
+                        Télécharger / Enregistrer
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {Platform.OS === 'ios' && (
+                    <View style={{ width: '100%', height: 180, marginTop: 16, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }}>
+                      <WebView
+                        source={{ uri: viewerUrl }}
+                        style={{ flex: 1, backgroundColor: 'transparent' }}
+                        originWhitelist={['*', 'file://*', 'data:*']}
+                        allowFileAccess={true}
+                        scalesPageToFit={true}
+                      />
+                    </View>
+                  )}
+                </ScrollView>
+              );
+            })()}
+          </View>
+        </View>
+      </Modal>
+</ScrollView>
   );
 }
 

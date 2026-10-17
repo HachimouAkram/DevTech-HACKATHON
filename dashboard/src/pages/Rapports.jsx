@@ -944,7 +944,7 @@ export default function Rapports({ token, currentUser }) {
                                     printWin.document.write(`
                                         <html>
                                             <head>
-                                                <title>Rapport d'Activité IA - Teranga Civil</title>
+                                                <title>Rapport d'Activité IA - SenInnov</title>
                                                 <style>
                                                     body { font-family: system-ui, sans-serif; padding: 3rem; color: #1e293b; line-height: 1.6; }
                                                     h1 { border-bottom: 2px solid #e2e8f0; padding-bottom: 0.5rem; font-size: 1.8rem; font-weight: 800; color: #1e293b; }

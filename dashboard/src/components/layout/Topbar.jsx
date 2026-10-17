@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, Bell, User, LogOut, Sun, Moon } from 'lucide-react';
+import { Menu, Bell, User, LogOut, Sun, Moon, Globe } from 'lucide-react';
 import useNotifications from '../../hooks/useNotifications';
 
 export const Topbar = ({ user, sidebarCollapsed, toggleSidebar, onLogout }) => {
@@ -60,6 +60,16 @@ export const Topbar = ({ user, sidebarCollapsed, toggleSidebar, onLogout }) => {
         </div>
       </div>
       <div className="flex-gap" style={{ position: 'relative' }}>
+        {/* Link to Public Showcase Site Vitrine */}
+        <Link
+          to="/"
+          className="sidebar-toggle-btn"
+          style={{ marginRight: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', color: 'inherit' }}
+          title="Voir le site vitrine public"
+        >
+          <Globe size={22} />
+        </Link>
+
         {/* Theme Toggle Button */}
         <button
           onClick={toggleTheme}

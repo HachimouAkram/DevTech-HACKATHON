@@ -393,7 +393,7 @@ const MonProfil = ({ token, currentUser }) => {
       const href = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = href;
-      link.download = `teranga_backup_${user.nom_complet.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.json`;
+      link.download = `seninnov_backup_${user.nom_complet.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.json`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -1075,7 +1075,7 @@ const MonProfil = ({ token, currentUser }) => {
                 Sauvegarde & Restauration des Données
               </h2>
               <p style={{ margin: 0, fontSize: '0.92rem', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
-                En tant qu'administrateur de niveau supérieur, vous avez le droit de sauvegarder et de restaurer les données complètes de la plateforme Teranga Civil. 
+                En tant qu'administrateur de niveau supérieur, vous avez le droit de sauvegarder et de restaurer les données complètes de la plateforme SenInnov. 
                 Toutes les tables clés (dossiers, demandes d'actes civils, utilisateurs, configurations et métadonnées) seront exportées dans un fichier JSON hautement sécurisé et structuré.
               </p>
               <div style={{ display: 'flex', gap: '2rem', marginTop: '1.5rem', flexWrap: 'wrap' }}>

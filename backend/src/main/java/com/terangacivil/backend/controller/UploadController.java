@@ -4,6 +4,10 @@ import com.terangacivil.backend.dto.ApiResponse;
 import com.terangacivil.backend.service.ImageClarityService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -30,12 +34,15 @@ public class UploadController {
         }
 
         try {
-            // Get root upload path
-            String uploadPath = new File("uploads").getAbsolutePath();
-            File uploadDir = new File(uploadPath);
+            // Get canonical upload path (checks uploads or backend/uploads)
+            File uploadDir = new File("uploads").getAbsoluteFile();
+            if (!uploadDir.exists() && new File("backend/uploads").exists()) {
+                uploadDir = new File("backend/uploads").getAbsoluteFile();
+            }
             if (!uploadDir.exists()) {
                 uploadDir.mkdirs();
             }
+            String uploadPath = uploadDir.getAbsolutePath();
 
             // Generate unique filename
             String originalFilename = file.getOriginalFilename();
@@ -75,5 +82,49 @@ public class UploadController {
             e.printStackTrace();
             return ResponseEntity.internalServerError().body(ApiResponse.error("Erreur technique lors de l'enregistrement du fichier: " + e.getMessage()));
         }
+    }
+
+    @GetMapping("/download/{filename:.+}")
+    public ResponseEntity<Resource> downloadFile(@PathVariable String filename) {
+        try {
+            Path filePath = resolveUploadFile(filename);
+            if (filePath == null || !Files.exists(filePath)) {
+                return ResponseEntity.notFound().build();
+            }
+
+            Resource resource = new UrlResource(filePath.toUri());
+            String contentType = Files.probeContentType(filePath);
+            if (contentType == null) {
+                contentType = "application/octet-stream";
+            }
+
+            return ResponseEntity.ok()
+                    .contentType(MediaType.parseMediaType(contentType))
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + resource.getFilename() + "\"")
+                    .body(resource);
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    @GetMapping("/download/documents/{filename:.+}")
+    public ResponseEntity<Resource> downloadDocumentFile(@PathVariable String filename) {
+        return downloadFile("documents/" + filename);
+    }
+
+    private Path resolveUploadFile(String subpath) {
+        File[] baseDirs = new File[] {
+            new File("uploads").getAbsoluteFile(),
+            new File("backend/uploads").getAbsoluteFile()
+        };
+        for (File dir : baseDirs) {
+            if (dir.exists()) {
+                Path p = dir.toPath().resolve(subpath).normalize();
+                if (Files.exists(p)) {
+                    return p;
+                }
+            }
+        }
+        return null;
     }
 }

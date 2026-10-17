@@ -404,7 +404,7 @@ public class DemandeService {
         Map<String, Object> vars = new HashMap<>();
         vars.put("title", titre);
         vars.put("message", contenu);
-        emailService.sendHtmlEmail(email, titre + " - Teranga Civil", "email-template", vars);
+        emailService.sendHtmlEmail(email, titre + " - SenInnov", "email-template", vars);
     }
 
     @Transactional

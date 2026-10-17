@@ -26,7 +26,7 @@ public class TestEmailController {
             vars.put("message", "Ceci est un test pour vérifier que la configuration SMTP fonctionne correctement.");
             
             // Appeler la méthode
-            emailService.sendHtmlEmail(to, "Test SMTP - Teranga Civil", "email-template", vars);
+            emailService.sendHtmlEmail(to, "Test SMTP - SenInnov", "email-template", vars);
             
             return ResponseEntity.ok("Commande d'envoi déclenchée pour : " + to + ". Vérifiez la console du backend pour voir s'il y a une erreur ou un succès !");
         } catch (Exception e) {

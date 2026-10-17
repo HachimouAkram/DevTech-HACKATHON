@@ -253,8 +253,8 @@ export default function RootLayout() {
                   resizeMode="contain"
                 />
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 16 }}>
-                  <Text style={{ fontSize: 28, fontWeight: '800', color: '#0f172a', letterSpacing: -0.5 }}>Teranga</Text>
-                  <Text style={{ fontSize: 28, fontWeight: '800', color: '#2563eb', letterSpacing: -0.5 }}>Civil</Text>
+                  <Text style={{ fontSize: 28, fontWeight: '800', color: '#0f172a', letterSpacing: -0.5 }}>SenInnov</Text>
+                  <Text style={{ fontSize: 28, fontWeight: '800', color: '#2563eb', letterSpacing: -0.5 }}>Innov</Text>
                 </View>
                 <Text style={{ fontSize: 11, fontWeight: '700', color: '#64748b', letterSpacing: 2, marginTop: 4, textTransform: 'uppercase' }}>
                   République du Sénégal

@@ -2,7 +2,7 @@ import { API_BASE_URL } from '../utils/api.js';
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import Pagination from '../components/Pagination';
-import { Search, Eye, Check, XCircle, X, ShieldAlert, ClipboardCheck, DollarSign, Clock, FileText, CheckCircle } from 'lucide-react';
+import { Search, Eye, Check, XCircle, X, ShieldAlert, ClipboardCheck, DollarSign, Clock, FileText, CheckCircle, Download, ExternalLink } from 'lucide-react';
 import RejectModal from '../components/Demandes/Modals/RejectModal';
 import AssignModal from '../components/Demandes/Modals/AssignModal';
 import GenerateDocumentModal from '../components/Demandes/Modals/GenerateDocumentModal';
@@ -1479,6 +1479,33 @@ export default function DemandesList({ token, currentUser, defaultArchive = fals
                   </span>
                 </div>
 
+                {/* PDF Top Action Bar */}
+                {isPdf && (
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <a
+                      href={previewFileUrl}
+                      download="document_officiel.pdf"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-primary"
+                      style={{ padding: '6px 14px', fontSize: '0.82rem', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}
+                      title="Télécharger le fichier PDF"
+                    >
+                      <Download size={15} /> Télécharger le PDF
+                    </a>
+                    <a
+                      href={previewFileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-secondary"
+                      style={{ padding: '6px 14px', fontSize: '0.82rem', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}
+                      title="Ouvrir dans un nouvel onglet"
+                    >
+                      <ExternalLink size={15} /> Plein écran ↗
+                    </a>
+                  </div>
+                )}
+
                 {/* Image controls for Zoom & Rotate */}
                 {!isPdf && (
                   <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -1506,23 +1533,92 @@ export default function DemandesList({ token, currentUser, defaultArchive = fals
               </div>
 
               <div style={{ flex: 1, backgroundColor: '#f1f5f9', borderRadius: '8px', overflow: 'auto', padding: '1.5rem', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                {isPdf ? (
-                  <iframe
-                    src={previewFileUrl}
-                    style={{ width: '100%', height: '100%', border: 'none', borderRadius: '4px' }}
-                    title="Aperçu PDF"
-                  />
+                {previewFileUrl.startsWith('file://') || previewFileUrl.startsWith('content://') ? (
+                  <div style={{ textAlign: 'center', padding: '2rem' }}>
+                    <span style={{ fontSize: '3rem' }}>📱</span>
+                    <h4 style={{ color: '#d97706', marginTop: '1rem', fontWeight: 700 }}>Fichier Resté sur le Téléphone</h4>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', maxWidth: '480px', margin: '0.5rem auto 1rem' }}>
+                      Ce document a été sélectionné en mode hors-ligne sur le terminal mobile du citoyen ({previewFileUrl.split('/').pop()}) et attend d'être synchronisé avec la mairie.
+                    </p>
+                  </div>
+                ) : isPdf ? (
+                  <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
+                    <object
+                      data={previewFileUrl}
+                      type="application/pdf"
+                      style={{ width: '100%', height: '100%', border: 'none', borderRadius: '4px', minHeight: '60vh' }}
+                    >
+                      <div style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        height: '100%',
+                        padding: '2rem',
+                        textAlign: 'center',
+                        backgroundColor: '#ffffff',
+                        borderRadius: '8px'
+                      }}>
+                        <div style={{
+                          width: '64px',
+                          height: '64px',
+                          borderRadius: '16px',
+                          backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          marginBottom: '1rem',
+                          color: '#ef4444'
+                        }}>
+                          <FileText size={32} />
+                        </div>
+                        <h4 style={{ color: 'var(--text-primary)', margin: '0 0 0.5rem', fontWeight: 700 }}>
+                          Document PDF Prêt à l'Emploi
+                        </h4>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', maxWidth: '460px', margin: '0 auto 1.5rem', lineHeight: 1.5 }}>
+                          Le fichier PDF est disponible. Vous pouvez l'afficher en plein écran dans un nouvel onglet ou le télécharger directement sur votre ordinateur.
+                        </p>
+                        <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+                          <a
+                            href={previewFileUrl}
+                            download="document_officiel.pdf"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn btn-primary"
+                            style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px' }}
+                          >
+                            <Download size={16} /> Télécharger
+                          </a>
+                          <a
+                            href={previewFileUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn btn-secondary"
+                            style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px' }}
+                          >
+                            <ExternalLink size={16} /> Ouvrir le document ↗
+                          </a>
+                        </div>
+                      </div>
+                    </object>
+                  </div>
                 ) : (
                   <div style={{
                     minWidth: '100%',
                     minHeight: '100%',
                     display: 'flex',
+                    flexDirection: 'column',
                     justifyContent: 'center',
                     alignItems: 'center',
                     padding: '2rem'
                   }}>
                     <img
                       src={previewFileUrl}
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        const errElem = e.target.nextElementSibling;
+                        if (errElem) errElem.style.display = 'flex';
+                      }}
                       style={{
                         maxWidth: '100%',
                         maxHeight: '70vh',
@@ -1534,6 +1630,16 @@ export default function DemandesList({ token, currentUser, defaultArchive = fals
                       }}
                       alt="Aperçu du document"
                     />
+                    <div style={{ display: 'none', flexDirection: 'column', alignItems: 'center', gap: '0.75rem', padding: '2rem', textAlign: 'center' }}>
+                      <span style={{ fontSize: '2.5rem' }}>⚠️</span>
+                      <h4 style={{ color: 'var(--text-primary)', margin: 0, fontWeight: 700 }}>Aperçu indisponible directement</h4>
+                      <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', maxWidth: '420px', margin: 0 }}>
+                        Le navigateur n'a pas pu afficher directement ce fichier image.
+                      </p>
+                      <a href={previewFileUrl} target="_blank" rel="noopener noreferrer" className="btn btn-primary" style={{ textDecoration: 'none', marginTop: '0.5rem' }}>
+                        Ouvrir le fichier dans un nouvel onglet ↗
+                      </a>
+                    </div>
                   </div>
                 )}
               </div>

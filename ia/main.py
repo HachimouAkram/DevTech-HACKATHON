@@ -6,7 +6,7 @@ from api.routers import chat, payment, pointage, reports
 # Initialize Database
 init_db()
 
-app = FastAPI(title="Teranga Civil AI Assistant", version="2.0")
+app = FastAPI(title="SenInnov AI Assistant", version="2.0")
 
 # CORS Middleware config
 app.add_middleware(
@@ -25,4 +25,4 @@ app.include_router(reports.router)
 
 @app.get("/")
 def health_check():
-    return {"status": "ok", "message": "Teranga AI Assistant API is running"}
+    return {"status": "ok", "message": "SenInnov AI Assistant API is running"}

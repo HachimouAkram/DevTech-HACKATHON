@@ -1420,7 +1420,15 @@ export default function DocumentsToSign({ token, currentUser, defaultArchive = f
               </div>
 
               <div style={{ flex: 1, backgroundColor: '#f1f5f9', borderRadius: '8px', overflow: 'auto', padding: '1.5rem', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                {isPdf ? (
+                {previewFileUrl.startsWith('file://') || previewFileUrl.startsWith('content://') ? (
+                  <div style={{ textAlign: 'center', padding: '2rem' }}>
+                    <span style={{ fontSize: '3rem' }}>📱</span>
+                    <h4 style={{ color: '#d97706', marginTop: '1rem', fontWeight: 700 }}>Fichier Resté sur le Téléphone</h4>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', maxWidth: '480px', margin: '0.5rem auto 1rem' }}>
+                      Ce document a été sélectionné en mode hors-ligne sur le terminal mobile du citoyen ({previewFileUrl.split('/').pop()}) et attend d'être synchronisé avec la mairie.
+                    </p>
+                  </div>
+                ) : isPdf ? (
                   <iframe
                     src={previewFileUrl}
                     style={{ width: '100%', height: '100%', border: 'none', borderRadius: '4px' }}
@@ -1431,12 +1439,18 @@ export default function DocumentsToSign({ token, currentUser, defaultArchive = f
                     minWidth: '100%',
                     minHeight: '100%',
                     display: 'flex',
+                    flexDirection: 'column',
                     justifyContent: 'center',
                     alignItems: 'center',
                     padding: '2rem'
                   }}>
                     <img
                       src={previewFileUrl}
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        const errElem = e.target.nextElementSibling;
+                        if (errElem) errElem.style.display = 'flex';
+                      }}
                       style={{
                         maxWidth: '100%',
                         maxHeight: '70vh',
@@ -1448,6 +1462,16 @@ export default function DocumentsToSign({ token, currentUser, defaultArchive = f
                       }}
                       alt="Aperçu du document"
                     />
+                    <div style={{ display: 'none', flexDirection: 'column', alignItems: 'center', gap: '0.75rem', padding: '2rem', textAlign: 'center' }}>
+                      <span style={{ fontSize: '2.5rem' }}>⚠️</span>
+                      <h4 style={{ color: 'var(--text-primary)', margin: 0, fontWeight: 700 }}>Aperçu indisponible directement</h4>
+                      <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', maxWidth: '420px', margin: 0 }}>
+                        Le navigateur n'a pas pu afficher directement ce fichier image.
+                      </p>
+                      <a href={previewFileUrl} target="_blank" rel="noopener noreferrer" className="btn btn-primary" style={{ textDecoration: 'none', marginTop: '0.5rem' }}>
+                        Ouvrir le fichier dans un nouvel onglet ↗
+                      </a>
+                    </div>
                   </div>
                 )}
               </div>
